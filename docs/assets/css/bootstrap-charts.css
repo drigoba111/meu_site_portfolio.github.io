@@ -2,6 +2,21 @@ body {
     min-height: 100vh;
 }
 
+.fx-card {
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+}
+
+.fx-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 0.75rem 1.5rem rgba(15, 23, 42, 0.12) !important;
+}
+
+.stat-card .stat-icon {
+    font-size: 1.2rem;
+    margin-bottom: 0.35rem;
+    display: inline-block;
+}
+
 .report {
     border: 1px solid #dee2e6;
     border-radius: 0.75rem;
