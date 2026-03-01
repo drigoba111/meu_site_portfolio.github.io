@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Portfólio NetSuite | 10 Projetos</title>
+    <style>
+        :root {
+            --bg: #0b1020;
+            --surface: #131a2e;
+            --surface-2: #1a2340;
+            --text: #e9edf7;
+            --muted: #a9b3cc;
+            --brand: #4f8cff;
+            --brand-2: #7aa6ff;
+            --ok: #31d0aa;
+            --border: #2a355f;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: "Segoe UI", Inter, Roboto, Arial, sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top right, #1e2a50 0%, var(--bg) 45%);
+            color: var(--text);
+            min-height: 100vh;
+            line-height: 1.5;
+        }
+
+        .container {
+            width: min(1100px, 92%);
+            margin: 0 auto;
+            padding: 40px 0 70px;
+        }
+
+        .hero {
+            background: linear-gradient(140deg, rgba(79, 140, 255, 0.18), rgba(122, 166, 255, 0.08));
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 28px;
+            margin-bottom: 28px;
+        }
+
+        .kicker {
+            display: inline-block;
+            color: var(--brand-2);
+            font-size: 0.85rem;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        h1 {
+            font-size: clamp(1.8rem, 2.4vw, 2.7rem);
+            margin-bottom: 8px;
+        }
+
+        .subtitle {
+            color: var(--muted);
+            max-width: 760px;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+            margin-top: 20px;
+        }
+
+        .stat {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .stat b {
+            display: block;
+            font-size: 1.2rem;
+            color: var(--ok);
+            margin-bottom: 4px;
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 16px;
+        }
+
+        .card {
+            background: linear-gradient(160deg, var(--surface) 0%, var(--surface-2) 100%);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            border-color: var(--brand);
+        }
+
+        .card h3 {
+            font-size: 1.05rem;
+            margin-bottom: 8px;
+        }
+
+        .meta {
+            color: var(--brand-2);
+            font-weight: 600;
+            font-size: 0.85rem;
+            margin-bottom: 10px;
+        }
+
+        .card p {
+            color: var(--muted);
+            font-size: 0.94rem;
+            margin-bottom: 12px;
+        }
+
+        .tags {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+        }
+
+        .tag {
+            border: 1px solid #3a4a7d;
+            color: #d5def7;
+            border-radius: 999px;
+            font-size: 0.78rem;
+            padding: 5px 10px;
+            background: rgba(12, 20, 42, 0.5);
+        }
+
+        footer {
+            margin-top: 28px;
+            color: var(--muted);
+            font-size: 0.9rem;
+            text-align: center;
+        }
+
+        @media (max-width: 640px) {
+            .hero {
+                padding: 20px;
+            }
+
+            .card {
+                padding: 16px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="container">
+        <section class="hero">
+            <span class="kicker">Portfólio NetSuite</span>
+            <h1>10 Projetos de Desenvolvimento Mais Usados no NetSuite</h1>
+            <p class="subtitle">
+                Exemplos de soluções práticas com SuiteScript 2.1 para automação, integrações e performance em ambientes ERP.
+            </p>
+            <div class="stats">
+                <div class="stat">
+                    <b>10</b>
+                    Projetos de referência
+                </div>
+                <div class="stat">
+                    <b>SuiteScript 2.1</b>
+                    Padrão de desenvolvimento
+                </div>
+                <div class="stat">
+                    <b>REST / SOAP</b>
+                    Integrações corporativas
+                </div>
+                <div class="stat">
+                    <b>Escalável</b>
+                    Foco em governança e volume
+                </div>
+            </div>
+        </section>
+
+        <section class="grid">
+            <article class="card">
+                <h3>1. Dashboard Operacional com Suitelet</h3>
+                <div class="meta">Visão gerencial em tempo real</div>
+                <p>Interface customizada com KPIs, filtros e atalhos para monitorar processos-chave do negócio.</p>
+                <div class="tags"><span class="tag">Suitelet</span><span class="tag">UI</span><span class="tag">KPI</span></div>
+            </article>
+
+            <article class="card">
+                <h3>2. Integração de Pedidos via RESTlet</h3>
+                <div class="meta">E-commerce / CRM / ERP</div>
+                <p>Recebimento e envio de pedidos com validações, logs e tratamento de erro padronizado.</p>
+                <div class="tags"><span class="tag">RESTlet</span><span class="tag">API</span><span class="tag">Integração</span></div>
+            </article>
+
+            <article class="card">
+                <h3>3. Validações em Formulário com Client Script</h3>
+                <div class="meta">Melhora de qualidade de dados</div>
+                <p>Regras de negócio na tela para evitar inconsistências antes do salvamento do registro.</p>
+                <div class="tags"><span class="tag">Client Script</span><span class="tag">Validação</span><span class="tag">UX</span></div>
+            </article>
+
+            <article class="card">
+                <h3>4. Automação de Lançamentos com User Event</h3>
+                <div class="meta">Processo sem intervenção manual</div>
+                <p>Criação e atualização automática de registros relacionados no beforeSubmit e afterSubmit.</p>
+                <div class="tags"><span class="tag">User Event</span><span class="tag">Automação</span><span class="tag">Transação</span></div>
+            </article>
+
+            <article class="card">
+                <h3>5. Processamento em Massa com Map/Reduce</h3>
+                <div class="meta">Grande volume com performance</div>
+                <p>Tratamento de milhares de registros com controle de governança e execução em lote.</p>
+                <div class="tags"><span class="tag">Map/Reduce</span><span class="tag">Batch</span><span class="tag">Escala</span></div>
+            </article>
+
+            <article class="card">
+                <h3>6. Sincronização Agendada com Scheduled Script</h3>
+                <div class="meta">Execução recorrente</div>
+                <p>Jobs periódicos para sincronizar cadastros, preços e status com sistemas externos.</p>
+                <div class="tags"><span class="tag">Scheduled</span><span class="tag">Sincronização</span><span class="tag">Cron</span></div>
+            </article>
+
+            <article class="card">
+                <h3>7. Aprovação Inteligente de Compras</h3>
+                <div class="meta">Fluxo com alçadas e regras</div>
+                <p>Orquestração de aprovações por valor, centro de custo e departamento com notificações.</p>
+                <div class="tags"><span class="tag">Workflow</span><span class="tag">SuiteScript</span><span class="tag">Compliance</span></div>
+            </article>
+
+            <article class="card">
+                <h3>8. Relatórios Analíticos de Rentabilidade</h3>
+                <div class="meta">Visão financeira e operacional</div>
+                <p>Consolidação de custos e receitas por cliente, item ou projeto com filtros avançados.</p>
+                <div class="tags"><span class="tag">Saved Search</span><span class="tag">SuiteAnalytics</span><span class="tag">BI</span></div>
+            </article>
+
+            <article class="card">
+                <h3>9. Portal de Serviços Internos</h3>
+                <div class="meta">Autosserviço para usuários</div>
+                <p>Suitelet para abertura de solicitações, consulta de status e centralização de processos.</p>
+                <div class="tags"><span class="tag">Suitelet</span><span class="tag">Portal</span><span class="tag">Produtividade</span></div>
+            </article>
+
+            <article class="card">
+                <h3>10. Migração de Dados com SuiteCloud</h3>
+                <div class="meta">Implantação e evolução contínua</div>
+                <p>Estratégia de carga, versionamento e deploy para ambientes Sandbox e Produção.</p>
+                <div class="tags"><span class="tag">SDF</span><span class="tag">Deploy</span><span class="tag">Data Migration</span></div>
+            </article>
+        </section>
+
+        <footer>
+            Portfólio modelo • Personalizável com seus cases, clientes e métricas de impacto.
+        </footer>
+    </main>
+</body>
+</html>
