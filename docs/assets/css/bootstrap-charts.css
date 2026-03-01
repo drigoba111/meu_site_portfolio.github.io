@@ -18,29 +18,36 @@ body {
 }
 
 #projectsCarousel {
-    padding-bottom: 2.2rem;
+    position: relative;
+    padding-bottom: 6rem;
 }
 
 #projectsCarousel .carousel-indicators {
     margin-bottom: 0;
+    bottom: 3.2rem;
 }
 
 #projectsCarousel .carousel-control-prev,
 #projectsCarousel .carousel-control-next {
-    width: 44px;
-    height: 44px;
-    top: 50%;
-    transform: translateY(-50%);
-    background: rgba(15, 23, 42, 0.52);
+    width: 48px;
+    height: 48px;
+    top: auto;
+    bottom: 0.35rem;
+    transform: none;
+    opacity: 1;
+    background: #0d6efd;
     border-radius: 50%;
+    box-shadow: 0 0.5rem 1rem rgba(13, 110, 253, 0.35);
+    z-index: 5;
 }
 
 #projectsCarousel .carousel-control-prev {
-    left: -8px;
+    left: calc(50% - 64px);
 }
 
 #projectsCarousel .carousel-control-next {
-    right: -8px;
+    left: calc(50% + 16px);
+    right: auto;
 }
 
 .project-slide-card {
@@ -147,5 +154,14 @@ body {
     #projectsCarousel .carousel-control-next {
         width: 38px;
         height: 38px;
+        bottom: 0.45rem;
+    }
+
+    #projectsCarousel .carousel-control-prev {
+        left: calc(50% - 56px);
+    }
+
+    #projectsCarousel .carousel-control-next {
+        left: calc(50% + 12px);
     }
 }
