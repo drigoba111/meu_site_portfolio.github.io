@@ -237,7 +237,7 @@ h1 {
 }
 
 .donut::after {
-    content: "68%";
+    content: attr(data-label);
     position: absolute;
     inset: 17px;
     border-radius: 50%;

@@ -145,17 +145,17 @@
                         <div class="bars">
                             <div class="bar-row">
                                 <span>Unidade SP</span>
-                                <div class="bar-track"><div class="bar-fill" style="width: 92%"></div></div>
+                                <div class="bar-track"><div class="bar-fill" data-value="92"></div></div>
                                 <span>920</span>
                             </div>
                             <div class="bar-row">
                                 <span>Unidade PR</span>
-                                <div class="bar-track"><div class="bar-fill" style="width: 78%"></div></div>
+                                <div class="bar-track"><div class="bar-fill" data-value="78"></div></div>
                                 <span>780</span>
                             </div>
                             <div class="bar-row">
                                 <span>Unidade BA</span>
-                                <div class="bar-track"><div class="bar-fill" style="width: 64%"></div></div>
+                                <div class="bar-track"><div class="bar-fill" data-value="64"></div></div>
                                 <span>640</span>
                             </div>
                         </div>
@@ -164,7 +164,7 @@
                     <article class="chart-card">
                         <div class="chart-title">Entregas no prazo (SLA)</div>
                         <div class="donut-wrap">
-                            <div class="donut" aria-label="68 por cento no prazo"></div>
+                            <div class="donut" data-value="68" data-label="68%" aria-label="68 por cento no prazo"></div>
                             <div class="legend">
                                 <div><strong>No prazo:</strong> 68%</div>
                                 <div><strong>Fora do prazo:</strong> 32%</div>
@@ -177,8 +177,10 @@
         </div>
     </div>
 
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="assets/js/charts/charts.js"></script>
     <script src="assets/js/main.js"></script>
 </body>
 </html>
