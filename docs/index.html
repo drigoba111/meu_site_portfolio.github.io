@@ -3,7 +3,9 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Portfólio NetSuite | 10 Projetos</title>
+    <meta name="author" content="Rodrigo Messias Bassani" />
+    <meta name="contact" content="drigoba111@gmail.com" />
+    <title>Portfólio NetSuite | Rodrigo Messias Bassani</title>
     <style>
         :root {
             --bg: #f5f7fb;
@@ -265,6 +267,63 @@
             margin-bottom: 4px;
         }
 
+        .contact {
+            margin-top: 24px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 6px 20px rgba(25, 49, 102, 0.06);
+        }
+
+        .contact h2 {
+            font-size: 1.18rem;
+            margin-bottom: 6px;
+        }
+
+        .contact p {
+            color: var(--muted);
+            margin-bottom: 12px;
+        }
+
+        .contact a {
+            color: var(--brand);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .contact-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .contact-form input {
+            flex: 1 1 360px;
+            min-height: 40px;
+            border-radius: 10px;
+            border: 1px solid #c9d8f8;
+            padding: 0 12px;
+            font-size: 0.92rem;
+            color: var(--text);
+            background: #f9fbff;
+        }
+
+        .contact-form button {
+            min-height: 40px;
+            border-radius: 10px;
+            border: 1px solid #b9ccf8;
+            background: #eaf1ff;
+            color: #2f5fca;
+            font-weight: 600;
+            padding: 0 14px;
+            cursor: pointer;
+        }
+
+        .contact-form button:hover {
+            background: #dfeaff;
+        }
+
         footer {
             margin-top: 28px;
             color: var(--muted);
@@ -434,7 +493,39 @@
             </div>
         </section>
 
+        <section class="contact">
+            <h2>Contato — Rodrigo Messias Bassani</h2>
+            <p>E-mail para contato: <a href="mailto:drigoba111@gmail.com">drigoba111@gmail.com</a></p>
+
+            <form id="proposalForm" class="contact-form">
+                <input
+                    id="proposalInput"
+                    type="text"
+                    placeholder="Descreva sua proposta de orçamento para implementação"
+                    required
+                />
+                <button type="submit">Enviar proposta</button>
+            </form>
+        </section>
+
         <footer></footer>
     </main>
+
+    <script>
+        const proposalForm = document.getElementById("proposalForm");
+        const proposalInput = document.getElementById("proposalInput");
+
+        proposalForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+
+            const message = proposalInput.value.trim();
+            if (!message) return;
+
+            const subject = "Proposta de orçamento para implementação NetSuite";
+            const body = `Olá Rodrigo,%0D%0A%0D%0A${encodeURIComponent(message)}%0D%0A%0D%0AAtenciosamente,`;
+
+            window.location.href = `mailto:drigoba111@gmail.com?subject=${encodeURIComponent(subject)}&body=${body}`;
+        });
+    </script>
 </body>
 </html>
