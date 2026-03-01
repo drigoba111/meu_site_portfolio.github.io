@@ -54,6 +54,11 @@ body {
     min-height: 340px;
 }
 
+.modal-header-actions {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+}
+
 .report {
     border: 1px solid #dee2e6;
     border-radius: 0.75rem;
@@ -163,5 +168,14 @@ body {
 
     #projectsCarousel .carousel-control-next {
         left: calc(50% + 12px);
+    }
+
+    .modal-header {
+        align-items: flex-start;
+    }
+
+    .modal-header-actions {
+        width: 100%;
+        margin-top: 0.5rem;
     }
 }
