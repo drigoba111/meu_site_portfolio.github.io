@@ -64,117 +64,72 @@
             </div>
         </section>
 
-        <section class="row g-3">
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-bar-chart-line-fill text-primary mt-1"></i><span>1. Indústria de Alimentos — Dashboard de Produção e Expedição</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Operação com alto volume e SLA logístico</p>
-                        <p class="mb-2"><strong>Negócio:</strong> A diretoria precisava acompanhar em tempo real pedidos faturados, atrasos de expedição e rupturas para reduzir multas e melhorar nível de serviço.</p>
-                        <p class="mb-3"><strong>Técnica (NetSuite):</strong> Desenvolvido Suitelet com KPIs via N/search, filtros dinâmicos por unidade e período, e atalhos para transações críticas. Cache de resultados para reduzir consumo de governança.</p>
-                        <button id="openDashboardBtn" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#dashboardModal">Abrir dashboard</button>
-                    </div>
+        <section class="mb-4">
+            <div id="projectsCarousel" class="carousel slide" data-bs-ride="false">
+                <div class="carousel-indicators">
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Projeto 1"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="1" aria-label="Projeto 2"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="2" aria-label="Projeto 3"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="3" aria-label="Projeto 4"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="4" aria-label="Projeto 5"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="5" aria-label="Projeto 6"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="6" aria-label="Projeto 7"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="7" aria-label="Projeto 8"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="8" aria-label="Projeto 9"></button>
+                    <button type="button" data-bs-target="#projectsCarousel" data-bs-slide-to="9" aria-label="Projeto 10"></button>
                 </div>
-            </article>
 
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-arrow-left-right text-warning mt-1"></i><span>2. Varejo Omnichannel — Integração de Pedidos</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">E-commerce, marketplace e ERP unificados</p>
-                        <p class="mb-2"><strong>Negócio:</strong> A empresa sofria com divergência de estoque e atraso de faturamento por falta de integração entre canais digitais e backoffice.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> RESTlet para entrada de pedidos e atualização de status, validação de cliente/item/preço, idempotência por chave externa, logs de erro e fila de reprocessamento para falhas de API.</p>
+                <div class="carousel-inner">
+                    <div class="carousel-item active">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card">
+                            <div class="card-body p-4 p-lg-5">
+                                <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-bar-chart-line-fill text-primary mt-1"></i><span>1. Indústria de Alimentos — Dashboard de Produção e Expedição</span></h2>
+                                <p class="text-primary-emphasis small fw-semibold mb-2">Operação com alto volume e SLA logístico</p>
+                                <p class="mb-2"><strong>Negócio:</strong> A diretoria precisava acompanhar em tempo real pedidos faturados, atrasos de expedição e rupturas para reduzir multas e melhorar nível de serviço.</p>
+                                <p class="mb-3"><strong>Técnica (NetSuite):</strong> Desenvolvido Suitelet com KPIs via N/search, filtros dinâmicos por unidade e período, e atalhos para transações críticas. Cache de resultados para reduzir consumo de governança.</p>
+                                <button id="openDashboardBtn" class="btn btn-outline-primary btn-sm" type="button" data-bs-toggle="modal" data-bs-target="#dashboardModal">Abrir dashboard</button>
+                            </div>
+                        </article>
                     </div>
-                </div>
-            </article>
 
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-shield-check text-success mt-1"></i><span>3. Distribuidora Farmacêutica — Qualidade de Cadastro</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Conformidade regulatória e redução de retrabalho</p>
-                        <p class="mb-2"><strong>Negócio:</strong> Erros de preenchimento em pedidos e cadastros geravam bloqueios fiscais, retrabalho do time financeiro e risco de não conformidade.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> Client Script com validações em fieldChanged e saveRecord, verificação de campos obrigatórios por tipo de operação e mensagens orientativas para usuário antes do submit.</p>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-arrow-left-right text-warning mt-1"></i><span>2. Varejo Omnichannel — Integração de Pedidos</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">E-commerce, marketplace e ERP unificados</p><p class="mb-2"><strong>Negócio:</strong> A empresa sofria com divergência de estoque e atraso de faturamento por falta de integração entre canais digitais e backoffice.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> RESTlet para entrada de pedidos e atualização de status, validação de cliente/item/preço, idempotência por chave externa, logs de erro e fila de reprocessamento para falhas de API.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-shield-check text-success mt-1"></i><span>3. Distribuidora Farmacêutica — Qualidade de Cadastro</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Conformidade regulatória e redução de retrabalho</p><p class="mb-2"><strong>Negócio:</strong> Erros de preenchimento em pedidos e cadastros geravam bloqueios fiscais, retrabalho do time financeiro e risco de não conformidade.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> Client Script com validações em fieldChanged e saveRecord, verificação de campos obrigatórios por tipo de operação e mensagens orientativas para usuário antes do submit.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-repeat text-info mt-1"></i><span>4. Serviços B2B — Automação de Faturamento Recorrente</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Escala operacional com baixa intervenção manual</p><p class="mb-2"><strong>Negócio:</strong> O crescimento da carteira de contratos causava atrasos no faturamento mensal e inconsistência na geração de cobranças.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> User Event em beforeSubmit/afterSubmit para criar registros relacionados automaticamente, padronizar campos financeiros e disparar notificações para exceções de cobrança.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-gear-wide-connected text-secondary mt-1"></i><span>5. Indústria Automotiva — Reclassificação Fiscal em Lote</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Alto volume com janela curta de processamento</p><p class="mb-2"><strong>Negócio:</strong> Mudança tributária exigiu atualização massiva de itens e transações sem interromper operação de faturamento.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> Map/Reduce para processar milhares de registros, particionamento por subsidiária, controle de governança por estágio e relatório final com itens processados e rejeitados.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-clock-history text-dark mt-1"></i><span>6. Atacado Nacional — Sincronização de Preços e Estoque</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Atualização contínua entre sistemas</p><p class="mb-2"><strong>Negócio:</strong> Diferenças entre preço publicado e preço faturado geravam cancelamentos e perda de margem em campanhas comerciais.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> Scheduled Script para sincronização periódica com sistema legado, controle por carimbo de atualização, retentativas automáticas e alertas para divergências críticas.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-diagram-3-fill text-danger mt-1"></i><span>7. Grupo de Engenharia — Aprovação de Compras por Alçada</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Governança e compliance em despesas</p><p class="mb-2"><strong>Negócio:</strong> O processo manual de aprovação aumentava ciclo de compras e expunha a empresa a aprovações fora de política interna.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> Workflow com regras por valor, centro de custo e departamento, combinado com SuiteScript para exceções, trilha de auditoria e notificações automáticas por etapa.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-pie-chart-fill text-primary mt-1"></i><span>8. Consultoria Empresarial — Rentabilidade por Cliente e Projeto</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Tomada de decisão orientada por margem</p><p class="mb-2"><strong>Negócio:</strong> A liderança não tinha visibilidade confiável da margem por contrato, dificultando reajustes e priorização de contas.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> Saved Searches e SuiteAnalytics Workbook para consolidar receita, custo e horas alocadas, com painéis por gerente e filtros por período, segmento e unidade.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-window-sidebar text-info mt-1"></i><span>9. Holding Multinegócios — Portal Interno de Solicitações</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Autosserviço e padronização de atendimento</p><p class="mb-2"><strong>Negócio:</strong> Demandas internas de cadastro, compras e financeiro chegavam por e-mail sem controle de SLA e sem rastreabilidade.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> Suitelet como portal interno com abertura de chamados, workflow de status, anexos e histórico por solicitação, integrado aos registros padrão do ERP.</p></div></article>
+                    </div>
+                    <div class="carousel-item">
+                        <article class="card border-0 shadow-sm fx-card project-slide-card"><div class="card-body p-4 p-lg-5"><h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-cloud-upload-fill text-success mt-1"></i><span>10. Rede de Franquias — Migração e Go-live NetSuite</span></h2><p class="text-primary-emphasis small fw-semibold mb-2">Implantação segura com continuidade operacional</p><p class="mb-2"><strong>Negócio:</strong> A mudança de ERP exigia migração de histórico e cadastros sem impactar faturamento das unidades franqueadas.</p><p class="mb-0"><strong>Técnica (NetSuite):</strong> SuiteCloud Development Framework (SDF) com versionamento e pipeline de deploy, cargas por fase (mestres e transacionais), validação pós-carga e checklist de cutover.</p></div></article>
                     </div>
                 </div>
-            </article>
 
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-repeat text-info mt-1"></i><span>4. Serviços B2B — Automação de Faturamento Recorrente</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Escala operacional com baixa intervenção manual</p>
-                        <p class="mb-2"><strong>Negócio:</strong> O crescimento da carteira de contratos causava atrasos no faturamento mensal e inconsistência na geração de cobranças.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> User Event em beforeSubmit/afterSubmit para criar registros relacionados automaticamente, padronizar campos financeiros e disparar notificações para exceções de cobrança.</p>
-                    </div>
-                </div>
-            </article>
-
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-gear-wide-connected text-secondary mt-1"></i><span>5. Indústria Automotiva — Reclassificação Fiscal em Lote</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Alto volume com janela curta de processamento</p>
-                        <p class="mb-2"><strong>Negócio:</strong> Mudança tributária exigiu atualização massiva de itens e transações sem interromper operação de faturamento.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> Map/Reduce para processar milhares de registros, particionamento por subsidiária, controle de governança por estágio e relatório final com itens processados e rejeitados.</p>
-                    </div>
-                </div>
-            </article>
-
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-clock-history text-dark mt-1"></i><span>6. Atacado Nacional — Sincronização de Preços e Estoque</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Atualização contínua entre sistemas</p>
-                        <p class="mb-2"><strong>Negócio:</strong> Diferenças entre preço publicado e preço faturado geravam cancelamentos e perda de margem em campanhas comerciais.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> Scheduled Script para sincronização periódica com sistema legado, controle por carimbo de atualização, retentativas automáticas e alertas para divergências críticas.</p>
-                    </div>
-                </div>
-            </article>
-
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-diagram-3-fill text-danger mt-1"></i><span>7. Grupo de Engenharia — Aprovação de Compras por Alçada</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Governança e compliance em despesas</p>
-                        <p class="mb-2"><strong>Negócio:</strong> O processo manual de aprovação aumentava ciclo de compras e expunha a empresa a aprovações fora de política interna.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> Workflow com regras por valor, centro de custo e departamento, combinado com SuiteScript para exceções, trilha de auditoria e notificações automáticas por etapa.</p>
-                    </div>
-                </div>
-            </article>
-
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-pie-chart-fill text-primary mt-1"></i><span>8. Consultoria Empresarial — Rentabilidade por Cliente e Projeto</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Tomada de decisão orientada por margem</p>
-                        <p class="mb-2"><strong>Negócio:</strong> A liderança não tinha visibilidade confiável da margem por contrato, dificultando reajustes e priorização de contas.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> Saved Searches e SuiteAnalytics Workbook para consolidar receita, custo e horas alocadas, com painéis por gerente e filtros por período, segmento e unidade.</p>
-                    </div>
-                </div>
-            </article>
-
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-window-sidebar text-info mt-1"></i><span>9. Holding Multinegócios — Portal Interno de Solicitações</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Autosserviço e padronização de atendimento</p>
-                        <p class="mb-2"><strong>Negócio:</strong> Demandas internas de cadastro, compras e financeiro chegavam por e-mail sem controle de SLA e sem rastreabilidade.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> Suitelet como portal interno com abertura de chamados, workflow de status, anexos e histórico por solicitação, integrado aos registros padrão do ERP.</p>
-                    </div>
-                </div>
-            </article>
-
-            <article class="col-12 col-md-6">
-                <div class="card h-100 border-0 shadow-sm fx-card">
-                    <div class="card-body">
-                        <h2 class="h5 mb-2 d-flex align-items-start gap-2"><i class="bi bi-cloud-upload-fill text-success mt-1"></i><span>10. Rede de Franquias — Migração e Go-live NetSuite</span></h2>
-                        <p class="text-primary-emphasis small fw-semibold mb-2">Implantação segura com continuidade operacional</p>
-                        <p class="mb-2"><strong>Negócio:</strong> A mudança de ERP exigia migração de histórico e cadastros sem impactar faturamento das unidades franqueadas.</p>
-                        <p class="mb-0"><strong>Técnica (NetSuite):</strong> SuiteCloud Development Framework (SDF) com versionamento e pipeline de deploy, cargas por fase (mestres e transacionais), validação pós-carga e checklist de cutover.</p>
-                    </div>
-                </div>
-            </article>
+                <button class="carousel-control-prev" type="button" data-bs-target="#projectsCarousel" data-bs-slide="prev">
+                    <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Anterior</span>
+                </button>
+                <button class="carousel-control-next" type="button" data-bs-target="#projectsCarousel" data-bs-slide="next">
+                    <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                    <span class="visually-hidden">Próximo</span>
+                </button>
+            </div>
         </section>
 
         <section class="mt-4">

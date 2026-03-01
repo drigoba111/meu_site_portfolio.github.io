@@ -17,6 +17,36 @@ body {
     display: inline-block;
 }
 
+#projectsCarousel {
+    padding-bottom: 2.2rem;
+}
+
+#projectsCarousel .carousel-indicators {
+    margin-bottom: 0;
+}
+
+#projectsCarousel .carousel-control-prev,
+#projectsCarousel .carousel-control-next {
+    width: 44px;
+    height: 44px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(15, 23, 42, 0.52);
+    border-radius: 50%;
+}
+
+#projectsCarousel .carousel-control-prev {
+    left: -8px;
+}
+
+#projectsCarousel .carousel-control-next {
+    right: -8px;
+}
+
+.project-slide-card {
+    min-height: 340px;
+}
+
 .report {
     border: 1px solid #dee2e6;
     border-radius: 0.75rem;
@@ -111,5 +141,11 @@ body {
 @media (max-width: 575px) {
     .bar-row {
         grid-template-columns: 84px 1fr 32px;
+    }
+
+    #projectsCarousel .carousel-control-prev,
+    #projectsCarousel .carousel-control-next {
+        width: 38px;
+        height: 38px;
     }
 }
