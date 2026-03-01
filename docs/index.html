@@ -6,15 +6,15 @@
     <title>Portfólio NetSuite | 10 Projetos</title>
     <style>
         :root {
-            --bg: #0b1020;
-            --surface: #131a2e;
-            --surface-2: #1a2340;
-            --text: #e9edf7;
-            --muted: #a9b3cc;
-            --brand: #4f8cff;
-            --brand-2: #7aa6ff;
-            --ok: #31d0aa;
-            --border: #2a355f;
+            --bg: #f5f7fb;
+            --surface: #ffffff;
+            --surface-2: #f8faff;
+            --text: #1f2a44;
+            --muted: #5f6f8f;
+            --brand: #3f7cff;
+            --brand-2: #5e95ff;
+            --ok: #19a97f;
+            --border: #d8e1f2;
         }
 
         * {
@@ -25,7 +25,7 @@
         }
 
         body {
-            background: radial-gradient(circle at top right, #1e2a50 0%, var(--bg) 45%);
+            background: radial-gradient(circle at top right, #eef4ff 0%, var(--bg) 52%);
             color: var(--text);
             min-height: 100vh;
             line-height: 1.5;
@@ -38,11 +38,12 @@
         }
 
         .hero {
-            background: linear-gradient(140deg, rgba(79, 140, 255, 0.18), rgba(122, 166, 255, 0.08));
+            background: linear-gradient(140deg, #ffffff, #f5f9ff);
             border: 1px solid var(--border);
             border-radius: 18px;
             padding: 28px;
             margin-bottom: 28px;
+            box-shadow: 0 8px 24px rgba(28, 55, 112, 0.08);
         }
 
         .kicker {
@@ -98,6 +99,7 @@
             border-radius: 14px;
             padding: 18px;
             transition: transform 0.2s ease, border-color 0.2s ease;
+            box-shadow: 0 6px 20px rgba(25, 49, 102, 0.06);
         }
 
         .card:hover {
@@ -134,12 +136,133 @@
         }
 
         .tag {
-            border: 1px solid #3a4a7d;
-            color: #d5def7;
+            border: 1px solid #cddaf6;
+            color: #36507f;
             border-radius: 999px;
             font-size: 0.78rem;
             padding: 5px 10px;
-            background: rgba(12, 20, 42, 0.5);
+            background: #f2f7ff;
+        }
+
+        .btn-report {
+            display: inline-block;
+            margin-bottom: 12px;
+            border: 1px solid #b9ccf8;
+            background: #eaf1ff;
+            color: #2f5fca;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 0.85rem;
+            padding: 8px 12px;
+            border-radius: 10px;
+            transition: background 0.2s ease, border-color 0.2s ease;
+        }
+
+        .btn-report:hover {
+            background: #dfeaff;
+            border-color: #a8c0f8;
+        }
+
+        .report {
+            margin-top: 24px;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            box-shadow: 0 6px 20px rgba(25, 49, 102, 0.06);
+        }
+
+        .report h2 {
+            font-size: 1.2rem;
+            margin-bottom: 6px;
+        }
+
+        .report .meta {
+            margin-bottom: 16px;
+        }
+
+        .charts {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 14px;
+        }
+
+        .chart-card {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            background: #fbfdff;
+        }
+
+        .chart-title {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #2a3d63;
+        }
+
+        .bars {
+            display: grid;
+            gap: 8px;
+        }
+
+        .bar-row {
+            display: grid;
+            grid-template-columns: 100px 1fr 36px;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.82rem;
+            color: #47608f;
+        }
+
+        .bar-track {
+            width: 100%;
+            height: 10px;
+            background: #e5edff;
+            border-radius: 999px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #6ea0ff, #3f7cff);
+            border-radius: 999px;
+        }
+
+        .donut-wrap {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .donut {
+            width: 90px;
+            height: 90px;
+            border-radius: 50%;
+            background: conic-gradient(#3f7cff 0 68%, #cfe0ff 68% 100%);
+            position: relative;
+        }
+
+        .donut::after {
+            content: "68%";
+            position: absolute;
+            inset: 17px;
+            border-radius: 50%;
+            background: #ffffff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 0.85rem;
+            color: #2b4f95;
+        }
+
+        .legend {
+            font-size: 0.82rem;
+            color: #4a638f;
+        }
+
+        .legend div {
+            margin-bottom: 4px;
         }
 
         footer {
@@ -194,6 +317,7 @@
                 <div class="meta">Operação com alto volume e SLA logístico</div>
                 <p><strong>Negócio:</strong> A diretoria precisava acompanhar em tempo real pedidos faturados, atrasos de expedição e rupturas para reduzir multas e melhorar nível de serviço.</p>
                 <p><strong>Técnica (NetSuite):</strong> Desenvolvido Suitelet com KPIs via `N/search`, filtros dinâmicos por unidade e período, e atalhos para transações críticas. Cache de resultados para reduzir consumo de governança.</p>
+                <a class="btn-report" href="#relatorio-dashboard">Ver relatório fictício</a>
                 <div class="tags"><span class="tag">Suitelet</span><span class="tag">UI</span><span class="tag">KPI</span></div>
             </article>
 
@@ -268,6 +392,46 @@
                 <p><strong>Técnica (NetSuite):</strong> SuiteCloud Development Framework (SDF) com versionamento e pipeline de deploy, cargas por fase (mestres e transacionais), validação pós-carga e checklist de cutover.</p>
                 <div class="tags"><span class="tag">SDF</span><span class="tag">Deploy</span><span class="tag">Data Migration</span></div>
             </article>
+        </section>
+
+        <section id="relatorio-dashboard" class="report">
+            <h2>Relatório Fictício — Dashboard de Produção e Expedição</h2>
+            <div class="meta">Indicadores simulados para demonstração do case</div>
+
+            <div class="charts">
+                <article class="chart-card">
+                    <div class="chart-title">Pedidos faturados por unidade</div>
+                    <div class="bars">
+                        <div class="bar-row">
+                            <span>Unidade SP</span>
+                            <div class="bar-track"><div class="bar-fill" style="width: 92%"></div></div>
+                            <span>920</span>
+                        </div>
+                        <div class="bar-row">
+                            <span>Unidade PR</span>
+                            <div class="bar-track"><div class="bar-fill" style="width: 78%"></div></div>
+                            <span>780</span>
+                        </div>
+                        <div class="bar-row">
+                            <span>Unidade BA</span>
+                            <div class="bar-track"><div class="bar-fill" style="width: 64%"></div></div>
+                            <span>640</span>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="chart-card">
+                    <div class="chart-title">Entregas no prazo (SLA)</div>
+                    <div class="donut-wrap">
+                        <div class="donut" aria-label="68 por cento no prazo"></div>
+                        <div class="legend">
+                            <div><strong>No prazo:</strong> 68%</div>
+                            <div><strong>Fora do prazo:</strong> 32%</div>
+                            <div><strong>Meta:</strong> 75%</div>
+                        </div>
+                    </div>
+                </article>
+            </div>
         </section>
 
         <footer></footer>
