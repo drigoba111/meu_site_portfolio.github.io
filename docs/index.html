@@ -158,6 +158,7 @@
             padding: 8px 12px;
             border-radius: 10px;
             transition: background 0.2s ease, border-color 0.2s ease;
+            cursor: pointer;
         }
 
         .btn-report:hover {
@@ -265,6 +266,62 @@
 
         .legend div {
             margin-bottom: 4px;
+        }
+
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(18, 33, 61, 0.45);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 18px;
+            z-index: 999;
+        }
+
+        .modal.is-open {
+            display: flex;
+        }
+
+        .modal-content {
+            width: min(900px, 100%);
+            max-height: 92vh;
+            overflow: auto;
+            background: #ffffff;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 16px;
+            box-shadow: 0 14px 40px rgba(24, 43, 84, 0.25);
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .btn-close {
+            background: #fff4f4;
+            border-color: #f0c8c8;
+            color: #b83f3f;
+        }
+
+        .btn-close:hover {
+            background: #ffe8e8;
+            border-color: #e9b3b3;
+        }
+
+        body.modal-open {
+            overflow: hidden;
         }
 
         .contact {
@@ -376,7 +433,7 @@
                 <div class="meta">Operação com alto volume e SLA logístico</div>
                 <p><strong>Negócio:</strong> A diretoria precisava acompanhar em tempo real pedidos faturados, atrasos de expedição e rupturas para reduzir multas e melhorar nível de serviço.</p>
                 <p><strong>Técnica (NetSuite):</strong> Desenvolvido Suitelet com KPIs via `N/search`, filtros dinâmicos por unidade e período, e atalhos para transações críticas. Cache de resultados para reduzir consumo de governança.</p>
-                <a class="btn-report" href="#relatorio-dashboard">Ver relatório fictício</a>
+                <button id="openDashboardBtn" class="btn-report" type="button">Abrir dashboard</button>
                 <div class="tags"><span class="tag">Suitelet</span><span class="tag">UI</span><span class="tag">KPI</span></div>
             </article>
 
@@ -453,46 +510,6 @@
             </article>
         </section>
 
-        <section id="relatorio-dashboard" class="report">
-            <h2>Relatório Fictício — Dashboard de Produção e Expedição</h2>
-            <div class="meta">Indicadores simulados para demonstração do case</div>
-
-            <div class="charts">
-                <article class="chart-card">
-                    <div class="chart-title">Pedidos faturados por unidade</div>
-                    <div class="bars">
-                        <div class="bar-row">
-                            <span>Unidade SP</span>
-                            <div class="bar-track"><div class="bar-fill" style="width: 92%"></div></div>
-                            <span>920</span>
-                        </div>
-                        <div class="bar-row">
-                            <span>Unidade PR</span>
-                            <div class="bar-track"><div class="bar-fill" style="width: 78%"></div></div>
-                            <span>780</span>
-                        </div>
-                        <div class="bar-row">
-                            <span>Unidade BA</span>
-                            <div class="bar-track"><div class="bar-fill" style="width: 64%"></div></div>
-                            <span>640</span>
-                        </div>
-                    </div>
-                </article>
-
-                <article class="chart-card">
-                    <div class="chart-title">Entregas no prazo (SLA)</div>
-                    <div class="donut-wrap">
-                        <div class="donut" aria-label="68 por cento no prazo"></div>
-                        <div class="legend">
-                            <div><strong>No prazo:</strong> 68%</div>
-                            <div><strong>Fora do prazo:</strong> 32%</div>
-                            <div><strong>Meta:</strong> 75%</div>
-                        </div>
-                    </div>
-                </article>
-            </div>
-        </section>
-
         <section class="contact">
             <h2>Contato — Rodrigo Messias Bassani</h2>
             <p>E-mail para contato: <a href="mailto:drigoba111@gmail.com">drigoba111@gmail.com</a></p>
@@ -511,7 +528,140 @@
         <footer></footer>
     </main>
 
+    <div id="dashboardModal" class="modal" aria-hidden="true">
+        <div class="modal-content" role="dialog" aria-modal="true" aria-labelledby="dashboardTitle">
+            <div class="modal-header">
+                <h2 id="dashboardTitle">Relatório Fictício — Dashboard de Produção e Expedição</h2>
+                <div class="modal-actions">
+                    <button id="downloadPdfBtn" class="btn-report" type="button">Download em PDF</button>
+                    <button id="closeDashboardBtn" class="btn-report btn-close" type="button">Fechar</button>
+                </div>
+            </div>
+
+            <section id="dashboardCapture" class="report">
+                <div class="meta">Indicadores simulados para demonstração do case</div>
+                <div class="charts">
+                    <article class="chart-card">
+                        <div class="chart-title">Pedidos faturados por unidade</div>
+                        <div class="bars">
+                            <div class="bar-row">
+                                <span>Unidade SP</span>
+                                <div class="bar-track"><div class="bar-fill" style="width: 92%"></div></div>
+                                <span>920</span>
+                            </div>
+                            <div class="bar-row">
+                                <span>Unidade PR</span>
+                                <div class="bar-track"><div class="bar-fill" style="width: 78%"></div></div>
+                                <span>780</span>
+                            </div>
+                            <div class="bar-row">
+                                <span>Unidade BA</span>
+                                <div class="bar-track"><div class="bar-fill" style="width: 64%"></div></div>
+                                <span>640</span>
+                            </div>
+                        </div>
+                    </article>
+
+                    <article class="chart-card">
+                        <div class="chart-title">Entregas no prazo (SLA)</div>
+                        <div class="donut-wrap">
+                            <div class="donut" aria-label="68 por cento no prazo"></div>
+                            <div class="legend">
+                                <div><strong>No prazo:</strong> 68%</div>
+                                <div><strong>Fora do prazo:</strong> 32%</div>
+                                <div><strong>Meta:</strong> 75%</div>
+                            </div>
+                        </div>
+                    </article>
+                </div>
+            </section>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
     <script>
+        const dashboardModal = document.getElementById("dashboardModal");
+        const openDashboardBtn = document.getElementById("openDashboardBtn");
+        const closeDashboardBtn = document.getElementById("closeDashboardBtn");
+        const downloadPdfBtn = document.getElementById("downloadPdfBtn");
+        const dashboardCapture = document.getElementById("dashboardCapture");
+
+        function openDashboard() {
+            dashboardModal.classList.add("is-open");
+            dashboardModal.setAttribute("aria-hidden", "false");
+            document.body.classList.add("modal-open");
+        }
+
+        function closeDashboard() {
+            dashboardModal.classList.remove("is-open");
+            dashboardModal.setAttribute("aria-hidden", "true");
+            document.body.classList.remove("modal-open");
+        }
+
+        openDashboardBtn.addEventListener("click", openDashboard);
+        closeDashboardBtn.addEventListener("click", closeDashboard);
+
+        dashboardModal.addEventListener("click", function (event) {
+            if (event.target === dashboardModal) {
+                closeDashboard();
+            }
+        });
+
+        document.addEventListener("keydown", function (event) {
+            if (event.key === "Escape" && dashboardModal.classList.contains("is-open")) {
+                closeDashboard();
+            }
+        });
+
+        downloadPdfBtn.addEventListener("click", async function () {
+            if (!window.html2canvas || !window.jspdf) {
+                alert("Biblioteca de PDF não carregada.");
+                return;
+            }
+
+            const previousLabel = downloadPdfBtn.textContent;
+            downloadPdfBtn.textContent = "Gerando PDF...";
+            downloadPdfBtn.disabled = true;
+
+            try {
+                const canvas = await html2canvas(dashboardCapture, {
+                    scale: 2,
+                    backgroundColor: "#ffffff"
+                });
+
+                const imageData = canvas.toDataURL("image/png");
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF("p", "mm", "a4");
+                const pageWidth = pdf.internal.pageSize.getWidth();
+                const pageHeight = pdf.internal.pageSize.getHeight();
+                const margin = 10;
+                const imageWidth = pageWidth - margin * 2;
+                const imageHeight = (canvas.height * imageWidth) / canvas.width;
+
+                let heightLeft = imageHeight;
+                let position = margin;
+
+                pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
+                heightLeft -= pageHeight - margin * 2;
+
+                while (heightLeft > 0) {
+                    pdf.addPage();
+                    position = margin - (imageHeight - heightLeft);
+                    pdf.addImage(imageData, "PNG", margin, position, imageWidth, imageHeight);
+                    heightLeft -= pageHeight - margin * 2;
+                }
+
+                pdf.save("dashboard-netsuite-ficticio.pdf");
+            } catch (error) {
+                alert("Não foi possível gerar o PDF.");
+            } finally {
+                downloadPdfBtn.textContent = previousLabel;
+                downloadPdfBtn.disabled = false;
+            }
+        });
+
         const proposalForm = document.getElementById("proposalForm");
         const proposalInput = document.getElementById("proposalInput");
 
