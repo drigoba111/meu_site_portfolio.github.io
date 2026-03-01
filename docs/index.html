@@ -123,6 +123,10 @@
             margin-bottom: 12px;
         }
 
+        .card p strong {
+            color: var(--text);
+        }
+
         .tags {
             display: flex;
             flex-wrap: wrap;
@@ -160,9 +164,9 @@
     <main class="container">
         <section class="hero">
             <span class="kicker">Portfólio NetSuite</span>
-            <h1>10 Projetos de Desenvolvimento Mais Usados no NetSuite</h1>
+            <h1>10 Cases Empresariais com Implementação em NetSuite</h1>
             <p class="subtitle">
-                Exemplos de soluções práticas com SuiteScript 2.1 para automação, integrações e performance em ambientes ERP.
+                Casos reais de negócio com contexto operacional e abordagem técnica de implementação em SuiteScript 2.1 no NetSuite.
             </p>
             <div class="stats">
                 <div class="stat">
@@ -186,72 +190,82 @@
 
         <section class="grid">
             <article class="card">
-                <h3>1. Dashboard Operacional com Suitelet</h3>
-                <div class="meta">Visão gerencial em tempo real</div>
-                <p>Interface customizada com KPIs, filtros e atalhos para monitorar processos-chave do negócio.</p>
+                <h3>1. Indústria de Alimentos — Dashboard de Produção e Expedição</h3>
+                <div class="meta">Operação com alto volume e SLA logístico</div>
+                <p><strong>Negócio:</strong> A diretoria precisava acompanhar em tempo real pedidos faturados, atrasos de expedição e rupturas para reduzir multas e melhorar nível de serviço.</p>
+                <p><strong>Técnica (NetSuite):</strong> Desenvolvido Suitelet com KPIs via `N/search`, filtros dinâmicos por unidade e período, e atalhos para transações críticas. Cache de resultados para reduzir consumo de governança.</p>
                 <div class="tags"><span class="tag">Suitelet</span><span class="tag">UI</span><span class="tag">KPI</span></div>
             </article>
 
             <article class="card">
-                <h3>2. Integração de Pedidos via RESTlet</h3>
-                <div class="meta">E-commerce / CRM / ERP</div>
-                <p>Recebimento e envio de pedidos com validações, logs e tratamento de erro padronizado.</p>
+                <h3>2. Varejo Omnichannel — Integração de Pedidos</h3>
+                <div class="meta">E-commerce, marketplace e ERP unificados</div>
+                <p><strong>Negócio:</strong> A empresa sofria com divergência de estoque e atraso de faturamento por falta de integração entre canais digitais e backoffice.</p>
+                <p><strong>Técnica (NetSuite):</strong> RESTlet para entrada de pedidos e atualização de status, validação de cliente/item/preço, idempotência por chave externa, logs de erro e fila de reprocessamento para falhas de API.</p>
                 <div class="tags"><span class="tag">RESTlet</span><span class="tag">API</span><span class="tag">Integração</span></div>
             </article>
 
             <article class="card">
-                <h3>3. Validações em Formulário com Client Script</h3>
-                <div class="meta">Melhora de qualidade de dados</div>
-                <p>Regras de negócio na tela para evitar inconsistências antes do salvamento do registro.</p>
+                <h3>3. Distribuidora Farmacêutica — Qualidade de Cadastro</h3>
+                <div class="meta">Conformidade regulatória e redução de retrabalho</div>
+                <p><strong>Negócio:</strong> Erros de preenchimento em pedidos e cadastros geravam bloqueios fiscais, retrabalho do time financeiro e risco de não conformidade.</p>
+                <p><strong>Técnica (NetSuite):</strong> Client Script com validações em `fieldChanged` e `saveRecord`, verificação de campos obrigatórios por tipo de operação e mensagens orientativas para usuário antes do submit.</p>
                 <div class="tags"><span class="tag">Client Script</span><span class="tag">Validação</span><span class="tag">UX</span></div>
             </article>
 
             <article class="card">
-                <h3>4. Automação de Lançamentos com User Event</h3>
-                <div class="meta">Processo sem intervenção manual</div>
-                <p>Criação e atualização automática de registros relacionados no beforeSubmit e afterSubmit.</p>
+                <h3>4. Serviços B2B — Automação de Faturamento Recorrente</h3>
+                <div class="meta">Escala operacional com baixa intervenção manual</div>
+                <p><strong>Negócio:</strong> O crescimento da carteira de contratos causava atrasos no faturamento mensal e inconsistência na geração de cobranças.</p>
+                <p><strong>Técnica (NetSuite):</strong> User Event em `beforeSubmit/afterSubmit` para criar registros relacionados automaticamente, padronizar campos financeiros e disparar notificações para exceções de cobrança.</p>
                 <div class="tags"><span class="tag">User Event</span><span class="tag">Automação</span><span class="tag">Transação</span></div>
             </article>
 
             <article class="card">
-                <h3>5. Processamento em Massa com Map/Reduce</h3>
-                <div class="meta">Grande volume com performance</div>
-                <p>Tratamento de milhares de registros com controle de governança e execução em lote.</p>
+                <h3>5. Indústria Automotiva — Reclassificação Fiscal em Lote</h3>
+                <div class="meta">Alto volume com janela curta de processamento</div>
+                <p><strong>Negócio:</strong> Mudança tributária exigiu atualização massiva de itens e transações sem interromper operação de faturamento.</p>
+                <p><strong>Técnica (NetSuite):</strong> Map/Reduce para processar milhares de registros, particionamento por subsidiária, controle de governança por estágio e relatório final com itens processados e rejeitados.</p>
                 <div class="tags"><span class="tag">Map/Reduce</span><span class="tag">Batch</span><span class="tag">Escala</span></div>
             </article>
 
             <article class="card">
-                <h3>6. Sincronização Agendada com Scheduled Script</h3>
-                <div class="meta">Execução recorrente</div>
-                <p>Jobs periódicos para sincronizar cadastros, preços e status com sistemas externos.</p>
+                <h3>6. Atacado Nacional — Sincronização de Preços e Estoque</h3>
+                <div class="meta">Atualização contínua entre sistemas</div>
+                <p><strong>Negócio:</strong> Diferenças entre preço publicado e preço faturado geravam cancelamentos e perda de margem em campanhas comerciais.</p>
+                <p><strong>Técnica (NetSuite):</strong> Scheduled Script para sincronização periódica com sistema legado, controle por carimbo de atualização, retentativas automáticas e alertas para divergências críticas.</p>
                 <div class="tags"><span class="tag">Scheduled</span><span class="tag">Sincronização</span><span class="tag">Cron</span></div>
             </article>
 
             <article class="card">
-                <h3>7. Aprovação Inteligente de Compras</h3>
-                <div class="meta">Fluxo com alçadas e regras</div>
-                <p>Orquestração de aprovações por valor, centro de custo e departamento com notificações.</p>
+                <h3>7. Grupo de Engenharia — Aprovação de Compras por Alçada</h3>
+                <div class="meta">Governança e compliance em despesas</div>
+                <p><strong>Negócio:</strong> O processo manual de aprovação aumentava ciclo de compras e expunha a empresa a aprovações fora de política interna.</p>
+                <p><strong>Técnica (NetSuite):</strong> Workflow com regras por valor, centro de custo e departamento, combinado com SuiteScript para exceções, trilha de auditoria e notificações automáticas por etapa.</p>
                 <div class="tags"><span class="tag">Workflow</span><span class="tag">SuiteScript</span><span class="tag">Compliance</span></div>
             </article>
 
             <article class="card">
-                <h3>8. Relatórios Analíticos de Rentabilidade</h3>
-                <div class="meta">Visão financeira e operacional</div>
-                <p>Consolidação de custos e receitas por cliente, item ou projeto com filtros avançados.</p>
+                <h3>8. Consultoria Empresarial — Rentabilidade por Cliente e Projeto</h3>
+                <div class="meta">Tomada de decisão orientada por margem</div>
+                <p><strong>Negócio:</strong> A liderança não tinha visibilidade confiável da margem por contrato, dificultando reajustes e priorização de contas.</p>
+                <p><strong>Técnica (NetSuite):</strong> Saved Searches e SuiteAnalytics Workbook para consolidar receita, custo e horas alocadas, com painéis por gerente e filtros por período, segmento e unidade.</p>
                 <div class="tags"><span class="tag">Saved Search</span><span class="tag">SuiteAnalytics</span><span class="tag">BI</span></div>
             </article>
 
             <article class="card">
-                <h3>9. Portal de Serviços Internos</h3>
-                <div class="meta">Autosserviço para usuários</div>
-                <p>Suitelet para abertura de solicitações, consulta de status e centralização de processos.</p>
+                <h3>9. Holding Multinegócios — Portal Interno de Solicitações</h3>
+                <div class="meta">Autosserviço e padronização de atendimento</div>
+                <p><strong>Negócio:</strong> Demandas internas de cadastro, compras e financeiro chegavam por e-mail sem controle de SLA e sem rastreabilidade.</p>
+                <p><strong>Técnica (NetSuite):</strong> Suitelet como portal interno com abertura de chamados, workflow de status, anexos e histórico por solicitação, integrado aos registros padrão do ERP.</p>
                 <div class="tags"><span class="tag">Suitelet</span><span class="tag">Portal</span><span class="tag">Produtividade</span></div>
             </article>
 
             <article class="card">
-                <h3>10. Migração de Dados com SuiteCloud</h3>
-                <div class="meta">Implantação e evolução contínua</div>
-                <p>Estratégia de carga, versionamento e deploy para ambientes Sandbox e Produção.</p>
+                <h3>10. Rede de Franquias — Migração e Go-live NetSuite</h3>
+                <div class="meta">Implantação segura com continuidade operacional</div>
+                <p><strong>Negócio:</strong> A mudança de ERP exigia migração de histórico e cadastros sem impactar faturamento das unidades franqueadas.</p>
+                <p><strong>Técnica (NetSuite):</strong> SuiteCloud Development Framework (SDF) com versionamento e pipeline de deploy, cargas por fase (mestres e transacionais), validação pós-carga e checklist de cutover.</p>
                 <div class="tags"><span class="tag">SDF</span><span class="tag">Deploy</span><span class="tag">Data Migration</span></div>
             </article>
         </section>
