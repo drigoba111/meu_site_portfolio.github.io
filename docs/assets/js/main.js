@@ -1,34 +1,6 @@
 $(function () {
-    const $dashboardModal = $("#dashboardModal");
-    const $openDashboardBtn = $("#openDashboardBtn");
-    const $closeDashboardBtn = $("#closeDashboardBtn");
     const $downloadPdfBtn = $("#downloadPdfBtn");
     const $dashboardCapture = $("#dashboardCapture");
-
-    function openDashboard() {
-        $dashboardModal.addClass("is-open").attr("aria-hidden", "false");
-        $("body").addClass("modal-open");
-    }
-
-    function closeDashboard() {
-        $dashboardModal.removeClass("is-open").attr("aria-hidden", "true");
-        $("body").removeClass("modal-open");
-    }
-
-    $openDashboardBtn.on("click", openDashboard);
-    $closeDashboardBtn.on("click", closeDashboard);
-
-    $dashboardModal.on("click", function (event) {
-        if (event.target === $dashboardModal.get(0)) {
-            closeDashboard();
-        }
-    });
-
-    $(document).on("keydown", function (event) {
-        if (event.key === "Escape" && $dashboardModal.hasClass("is-open")) {
-            closeDashboard();
-        }
-    });
 
     $downloadPdfBtn.on("click", async function () {
         if (!window.html2canvas || !window.jspdf) {

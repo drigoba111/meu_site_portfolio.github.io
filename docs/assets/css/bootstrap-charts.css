@@ -1,0 +1,100 @@
+body {
+    min-height: 100vh;
+}
+
+.report {
+    border: 1px solid #dee2e6;
+    border-radius: 0.75rem;
+    padding: 1rem;
+    background: #ffffff;
+}
+
+.charts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 0.875rem;
+}
+
+.chart-card {
+    border: 1px solid #e9ecef;
+    border-radius: 0.75rem;
+    padding: 0.875rem;
+    background: #fbfdff;
+}
+
+.chart-title {
+    font-weight: 600;
+    margin-bottom: 0.625rem;
+    color: #2a3d63;
+}
+
+.bars {
+    display: grid;
+    gap: 0.5rem;
+}
+
+.bar-row {
+    display: grid;
+    grid-template-columns: 100px 1fr 36px;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.82rem;
+    color: #47608f;
+}
+
+.bar-track {
+    width: 100%;
+    height: 10px;
+    background: #e5edff;
+    border-radius: 999px;
+    overflow: hidden;
+}
+
+.bar-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #6ea0ff, #3f7cff);
+    border-radius: 999px;
+}
+
+.donut-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
+}
+
+.donut {
+    width: 90px;
+    height: 90px;
+    border-radius: 50%;
+    background: conic-gradient(#3f7cff 0 68%, #cfe0ff 68% 100%);
+    position: relative;
+}
+
+.donut::after {
+    content: attr(data-label);
+    position: absolute;
+    inset: 17px;
+    border-radius: 50%;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 0.85rem;
+    color: #2b4f95;
+}
+
+.legend {
+    font-size: 0.82rem;
+    color: #4a638f;
+}
+
+.legend div {
+    margin-bottom: 0.25rem;
+}
+
+@media (max-width: 575px) {
+    .bar-row {
+        grid-template-columns: 84px 1fr 32px;
+    }
+}
