@@ -24,12 +24,17 @@ concurrency:
 jobs:
   # Build job
   build:
+    env:
+      GOOGLE_AD_CLIENT: ca-pub-9930630100945338
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
       - name: Setup Pages
         uses: actions/configure-pages@v5
+      - name: Generate Jekyll config
+        run: |
+          echo "google_ad_client: ${GOOGLE_AD_CLIENT}" > _config.yml
       - name: Build with Jekyll
         uses: actions/jekyll-build-pages@v1
         with:
