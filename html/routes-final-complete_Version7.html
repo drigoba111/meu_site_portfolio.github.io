@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rota completa: origem por endereço ou localização atual (Version7)</title>
+  <title>Rota completa: origem por endereço/localização + tipo de condução (Version8)</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; }
     .wrap { display:grid; grid-template-columns:460px 1fr; gap:12px; padding:12px; }
@@ -31,7 +31,7 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h3 style="margin-top:0">Rota completa (com localização atual opcional)</h3>
+    <h3 style="margin-top:0">Rota completa (Version8)</h3>
 
     <label>API Key</label>
     <input id="apiKey" type="password" placeholder="YOUR_API_KEY" />
@@ -63,6 +63,15 @@ Parque Ibirapuera, São Paulo - SP</textarea>
 
     <div class="row">
       <div>
+        <label>Tipo de condução</label>
+        <select id="travelMode">
+          <option value="DRIVE" selected>Carro</option>
+          <option value="TWO_WHEELER">Moto</option>
+          <option value="BICYCLE">Bicicleta</option>
+          <option value="WALK">A pé</option>
+        </select>
+      </div>
+      <div>
         <label>Preferência de trânsito</label>
         <select id="routingPreference">
           <option value="TRAFFIC_UNAWARE">TRAFFIC_UNAWARE</option>
@@ -70,6 +79,9 @@ Parque Ibirapuera, São Paulo - SP</textarea>
           <option value="TRAFFIC_AWARE_OPTIMAL">TRAFFIC_AWARE_OPTIMAL</option>
         </select>
       </div>
+    </div>
+
+    <div class="row">
       <div>
         <label>Otimizar ordem das paradas</label>
         <select id="optimizeOrder">
@@ -77,9 +89,6 @@ Parque Ibirapuera, São Paulo - SP</textarea>
           <option value="false">Não</option>
         </select>
       </div>
-    </div>
-
-    <div class="row">
       <div>
         <label>Partida</label>
         <select id="departureMode">
@@ -88,11 +97,10 @@ Parque Ibirapuera, São Paulo - SP</textarea>
           <option value="none">Não enviar departureTime</option>
         </select>
       </div>
-      <div>
-        <label>Data/hora (manual)</label>
-        <input id="manualDeparture" type="datetime-local" />
-      </div>
     </div>
+
+    <label>Data/hora (manual)</label>
+    <input id="manualDeparture" type="datetime-local" />
 
     <div class="actions">
       <button id="btnShow">Quero ver no mapa</button>
@@ -309,7 +317,6 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     if (mode === "device") {
       if (!deviceLocation) throw new Error("Não foi possível obter sua localização atual.");
       return {
-        // FIX Version7: formato correto para Routes API v2
         forApi: {
           location: {
             latLng: {
@@ -334,13 +341,13 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     };
   }
 
-  async function computeSingleRoute(apiKey, originApiObj, destination, intermediates, routingPreference, optimizeWaypointOrder, departureISO) {
+  async function computeSingleRoute(apiKey, originApiObj, destination, intermediates, routingPreference, travelMode, optimizeWaypointOrder, departureISO) {
     async function attempt(optimize) {
       const body = {
         origin: originApiObj,
         destination: { address: destination },
         intermediates: intermediates.map(s => ({ address: s })),
-        travelMode: "DRIVE",
+        travelMode,
         routingPreference,
         optimizeWaypointOrder: optimize,
         languageCode: "pt-BR",
@@ -410,8 +417,8 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     };
   }
 
-  async function solveBlockWithFallback(apiKey, originApiObj, originLabel, destination, intermediates, routingPreference, optimizeWaypointOrder, departureISO) {
-    const direct = await computeSingleRoute(apiKey, originApiObj, destination, intermediates, routingPreference, optimizeWaypointOrder, departureISO);
+  async function solveBlockWithFallback(apiKey, originApiObj, originLabel, destination, intermediates, routingPreference, travelMode, optimizeWaypointOrder, departureISO) {
+    const direct = await computeSingleRoute(apiKey, originApiObj, destination, intermediates, routingPreference, travelMode, optimizeWaypointOrder, departureISO);
     if (direct) {
       return {
         ok: true,
@@ -420,7 +427,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     }
 
     if (intermediates.length <= 1) {
-      const noStop = await computeSingleRoute(apiKey, originApiObj, destination, [], routingPreference, false, departureISO);
+      const noStop = await computeSingleRoute(apiKey, originApiObj, destination, [], routingPreference, travelMode, false, departureISO);
       if (noStop) {
         return {
           ok: true,
@@ -437,14 +444,14 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     const leftRes = await solveBlockWithFallback(
       apiKey, originApiObj, originLabel,
       split.left.destination, split.left.intermediates,
-      routingPreference, optimizeWaypointOrder, departureISO
+      routingPreference, travelMode, optimizeWaypointOrder, departureISO
     );
 
     const rightOriginApiObj = { address: split.left.destination };
     const rightRes = await solveBlockWithFallback(
       apiKey, rightOriginApiObj, split.left.destination,
       split.right.destination, split.right.intermediates,
-      routingPreference, optimizeWaypointOrder, departureISO
+      routingPreference, travelMode, optimizeWaypointOrder, departureISO
     );
 
     return {
@@ -454,7 +461,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     };
   }
 
-  async function computeLongRouteWithChunking(apiKey, originInput, end, allStops, routingPreference, optimizeWaypointOrder, departureISO) {
+  async function computeLongRouteWithChunking(apiKey, originInput, end, allStops, routingPreference, travelMode, optimizeWaypointOrder, departureISO) {
     const groups = chunk(allStops, MAX_INTERMEDIATES);
     let currentOriginApiObj = originInput.forApi;
     let currentOriginLabel = originInput.label;
@@ -477,7 +484,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
       const solved = await solveBlockWithFallback(
         apiKey, currentOriginApiObj, currentOriginLabel,
         blockDestination, blockIntermediates,
-        routingPreference, optimizeWaypointOrder, departureISO
+        routingPreference, travelMode, optimizeWaypointOrder, departureISO
       );
 
       if (!solved.parts.length) throw new Error(`Bloco ${i + 1} sem rota mesmo após fallback.`);
@@ -575,50 +582,68 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     });
   }
 
-  function buildGoogleMapsWebUrl(originTextOrCoords, destination, orderedStops) {
+  function buildGoogleMapsWebUrl(originTextOrCoords, destination, orderedStops, travelMode) {
     const params = new URLSearchParams();
     params.set("api", "1");
     params.set("origin", typeof originTextOrCoords === "string" ? originTextOrCoords : `${originTextOrCoords.lat},${originTextOrCoords.lng}`);
     params.set("destination", destination);
-    params.set("travelmode", "driving");
+
+    const modeMap = {
+      DRIVE: "driving",
+      TWO_WHEELER: "driving", // web maps não tem moto explícito
+      BICYCLE: "bicycling",
+      WALK: "walking"
+    };
+    params.set("travelmode", modeMap[travelMode] || "driving");
+
     if (orderedStops?.length) params.set("waypoints", orderedStops.join("|"));
     return `https://www.google.com/maps/dir/?${params.toString()}`;
   }
 
-  function buildGoogleMapsAppUrl(originTextOrCoords, destination, orderedStops) {
+  function buildGoogleMapsAppUrl(originTextOrCoords, destination, orderedStops, travelMode) {
     const chain = [...orderedStops, destination];
     const originStr = typeof originTextOrCoords === "string" ? originTextOrCoords : `${originTextOrCoords.lat},${originTextOrCoords.lng}`;
-    return "comgooglemaps://?directionsmode=driving" +
+
+    const modeMap = {
+      DRIVE: "driving",
+      TWO_WHEELER: "driving",
+      BICYCLE: "bicycling",
+      WALK: "walking"
+    };
+
+    return "comgooglemaps://?directionsmode=" + encodeURIComponent(modeMap[travelMode] || "driving") +
       "&saddr=" + encodeURIComponent(originStr) +
       "&daddr=" + encodeURIComponent(chain.join("+to:"));
-  }
-
-  function openInGoogleMapsWeb() {
-    if (!lastDestination) return setStatus("Calcule a rota primeiro.", "err");
-    const originRef = lastOriginCoord || lastOrigin;
-    if (!originRef) return setStatus("Origem inválida.", "err");
-    window.open(buildGoogleMapsWebUrl(originRef, lastDestination, lastOrderedStops || []), "_blank", "noopener,noreferrer");
-  }
-
-  function openInGoogleMapsApp() {
-    if (!lastDestination) return setStatus("Calcule a rota primeiro.", "err");
-    const originRef = lastOriginCoord || lastOrigin;
-    if (!originRef) return setStatus("Origem inválida.", "err");
-
-    const appUrl = buildGoogleMapsAppUrl(originRef, lastDestination, lastOrderedStops || []);
-    const webUrl = buildGoogleMapsWebUrl(originRef, lastDestination, lastOrderedStops || []);
-
-    const startTime = Date.now();
-    window.location.href = appUrl;
-    setTimeout(() => {
-      if (Date.now() - startTime < 1800) window.open(webUrl, "_blank", "noopener,noreferrer");
-    }, 1200);
   }
 
   function onOriginModeChange() {
     const mode = document.getElementById("originMode").value;
     document.getElementById("originAddressWrap").style.display = mode === "address" ? "block" : "none";
     document.getElementById("originDeviceWrap").style.display = mode === "device" ? "block" : "none";
+  }
+
+  function openInGoogleMapsWeb() {
+    if (!lastDestination) return setStatus("Calcule a rota primeiro.", "err");
+    const originRef = lastOriginCoord || lastOrigin;
+    if (!originRef) return setStatus("Origem inválida.", "err");
+    const travelMode = document.getElementById("travelMode").value;
+    window.open(buildGoogleMapsWebUrl(originRef, lastDestination, lastOrderedStops || [], travelMode), "_blank", "noopener,noreferrer");
+  }
+
+  function openInGoogleMapsApp() {
+    if (!lastDestination) return setStatus("Calcule a rota primeiro.", "err");
+    const originRef = lastOriginCoord || lastOrigin;
+    if (!originRef) return setStatus("Origem inválida.", "err");
+    const travelMode = document.getElementById("travelMode").value;
+
+    const appUrl = buildGoogleMapsAppUrl(originRef, lastDestination, lastOrderedStops || [], travelMode);
+    const webUrl = buildGoogleMapsWebUrl(originRef, lastDestination, lastOrderedStops || [], travelMode);
+
+    const startTime = Date.now();
+    window.location.href = appUrl;
+    setTimeout(() => {
+      if (Date.now() - startTime < 1800) window.open(webUrl, "_blank", "noopener,noreferrer");
+    }, 1200);
   }
 
   async function showMapFlow() {
@@ -630,6 +655,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     const apiKey = document.getElementById("apiKey").value.trim();
     const destination = document.getElementById("destination").value.trim();
     const stops = parseStops(document.getElementById("stops").value);
+    const travelMode = document.getElementById("travelMode").value;
 
     if (!apiKey) throw new Error("Informe a API key.");
     if (!destination) throw new Error("Informe destino.");
@@ -646,7 +672,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
 
     setStatus("2/4 Calculando rota...", "warn");
     const result = await computeLongRouteWithChunking(
-      apiKey, originInput, destination, stops, routingPreference, optimizeWaypointOrder, departureISO
+      apiKey, originInput, destination, stops, routingPreference, travelMode, optimizeWaypointOrder, departureISO
     );
 
     setStatus("3/4 Desenhando no mapa...", "warn");
@@ -691,8 +717,16 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     lastDestination = destination;
     lastOrderedStops = result.orderedStops;
 
+    const modeLabel = {
+      DRIVE: "Carro",
+      TWO_WHEELER: "Moto",
+      BICYCLE: "Bicicleta",
+      WALK: "A pé"
+    }[travelMode] || travelMode;
+
     document.getElementById("summary").innerHTML = `
       <p><strong>Origem usada:</strong> ${originInput.label}</p>
+      <p><strong>Tipo de condução:</strong> ${modeLabel}</p>
       <p><strong>Preferência de trânsito:</strong> ${routingPreference}</p>
       <p><strong>Otimização de paradas:</strong> ${optimizeWaypointOrder ? "Sim" : "Não"}</p>
       <p><strong>Total de paradas:</strong> ${result.orderedStops.length}</p>
@@ -710,7 +744,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     }
 
     document.getElementById("legDetails").innerHTML = renderLegTable(result.perLegDetails);
-    setStatus("4/4 OK: rota renderizada com origem dinâmica.", "ok");
+    setStatus("4/4 OK: rota renderizada com tipo de condução.", "ok");
   }
 
   document.getElementById("originMode").addEventListener("change", onOriginModeChange);
