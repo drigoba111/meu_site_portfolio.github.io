@@ -3,21 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rota completa (Version7 corrigido---------------)</title>
+  <title>Rota completa (Version7 corrigido + duration experimental)</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; }
-    .wrap { display:grid; grid-template-columns:460px 1fr; gap:12px; padding:12px; }
+    .wrap { display:grid; grid-template-columns:480px 1fr; gap:12px; padding:12px; }
     .panel { border:1px solid #ddd; border-radius:10px; padding:12px; }
     #map { width:100%; height:92vh; border:1px solid #ddd; border-radius:10px; background:#f7f7f7; }
     label { display:block; margin-top:8px; font-weight:600; }
     input, textarea, button, select { width:100%; box-sizing:border-box; padding:8px; margin-top:4px; }
-    textarea { min-height:160px; }
+    textarea { min-height:140px; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
-    .actions { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
+    .actions { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:10px; }
     .ok{ color:#0b8043; font-weight:700 }
     .err{ color:#c5221f; font-weight:700 }
     .warn{ color:#b26a00; font-weight:700 }
-    pre { background:#111; color:#eee; padding:10px; border-radius:8px; overflow:auto; max-height:260px; }
+    pre { background:#111; color:#eee; padding:10px; border-radius:8px; overflow:auto; max-height:280px; }
     .small { font-size:12px; color:#555; }
     table { width:100%; border-collapse:collapse; margin-top:8px; font-size:13px; }
     th, td { border:1px solid #ddd; padding:6px; text-align:left; }
@@ -28,7 +28,7 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h3 style="margin-top:0">Rota completa (Version7 corrigido)</h3>
+    <h3 style="margin-top:0">Rota completa (fallback duration intermediates)</h3>
 
     <label>API Key</label>
     <input id="apiKey" type="password" placeholder="YOUR_API_KEY" />
@@ -57,6 +57,20 @@
 Shopping Eldorado, São Paulo - SP
 Museu da Imagem e do Som, São Paulo - SP
 Parque Ibirapuera, São Paulo - SP</textarea>
+
+    <div class="row">
+      <div>
+        <label>Minutos por parada (global)</label>
+        <input id="minutesPerStop" type="number" min="0" step="1" value="10" />
+      </div>
+      <div>
+        <label>Enviar duration em intermediates</label>
+        <select id="tryIntermediateDuration">
+          <option value="true" selected>Sim (experimental + fallback)</option>
+          <option value="false">Não</option>
+        </select>
+      </div>
+    </div>
 
     <div class="row">
       <div>
@@ -110,11 +124,14 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     <div id="legDetails"></div>
 
     <details style="margin-top:10px;">
+      <summary>Payload enviado</summary>
+      <pre id="payloadPreview"></pre>
+    </details>
+
+    <details style="margin-top:10px;">
       <summary>Logs/Debug</summary>
       <pre id="debug"></pre>
     </details>
-
-    <p class="small">Campos opcionais estão protegidos contra null.</p>
   </div>
 
   <div class="panel"><div id="map"></div></div>
@@ -202,19 +219,8 @@ function addMarker(position,label,title){
 }
 function decodePolyline(encoded){let i=0,lat=0,lng=0,c=[];while(i<encoded.length){let b,s=0,r=0;do{b=encoded.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}while(b>=0x20);lat+=(r&1)?~(r>>1):(r>>1);s=0;r=0;do{b=encoded.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}while(b>=0x20);lng+=(r&1)?~(r>>1):(r>>1);c.push({lat:lat/1e5,lng:lng/1e5});}return c;}
 
-async function computeRoute(apiKey, originForApi, destination, stops, routingPreference, travelMode, optimizeWaypointOrder, departureISO){
-  const body={
-    origin:originForApi,
-    destination:{address:destination},
-    intermediates:stops.map(s=>({address:s})),
-    travelMode,
-    routingPreference,
-    optimizeWaypointOrder,
-    languageCode:"pt-BR",
-    units:"METRIC"
-  };
-  if(departureISO) body.departureTime=departureISO;
-
+async function postComputeRoutes(apiKey, body){
+  byId("payloadPreview").textContent = JSON.stringify(body, null, 2);
   const res=await fetch(ROUTES_URL,{
     method:"POST",
     headers:{
@@ -224,18 +230,67 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
     },
     body:JSON.stringify(body)
   });
-
   const txt=await res.text();
   let data={}; try{data=JSON.parse(txt);}catch{data={raw:txt};}
-  logDebug(`computeRoutes HTTP ${res.status}`,data);
+  return {res,data};
+}
 
-  if(!res.ok) throw new Error(data?.error?.message||`HTTP ${res.status}`);
-  const route=data.routes?.[0];
+async function computeRoute(apiKey, originForApi, destination, stops, routingPreference, travelMode, optimizeWaypointOrder, departureISO){
+  const tryDuration = getVal("tryIntermediateDuration","true")==="true";
+  const minutesPerStop = Math.max(0, parseInt(getVal("minutesPerStop","0"),10)||0);
+
+  const baseBody = {
+    origin: originForApi,
+    destination: {address: destination},
+    travelMode,
+    routingPreference,
+    optimizeWaypointOrder,
+    languageCode:"pt-BR",
+    units:"METRIC"
+  };
+  if(departureISO) baseBody.departureTime = departureISO;
+
+  // tentativa 1: duration em intermediates
+  if(tryDuration){
+    const bodyWithDuration = {
+      ...baseBody,
+      intermediates: stops.map(s=>({
+        address:s,
+        duration: `${minutesPerStop * 60}s` // experimental
+      }))
+    };
+
+    const r1 = await postComputeRoutes(apiKey, bodyWithDuration);
+    logDebug("Tentativa #1 (com duration em intermediates)", r1.data);
+
+    if(r1.res.ok && r1.data?.routes?.[0]){
+      logDebug("Campo duration em intermediates aceito nesta execução.", null);
+      const route = r1.data.routes[0];
+      const idx = route.optimizedIntermediateWaypointIndex || [];
+      const orderedStops = idx.length ? idx.map(i=>stops[i]) : stops.slice();
+      return {route, orderedStops, durationAccepted:true};
+    }
+
+    // rejeitou: log claro + fallback
+    const errMsg = r1.data?.error?.message || `HTTP ${r1.res.status}`;
+    logDebug("Campo duration em intermediates NÃO suportado/rejeitado. Fallback automático sem duration.", {error: errMsg});
+  }
+
+  // tentativa 2: sem duration
+  const bodyPlain = {
+    ...baseBody,
+    intermediates: stops.map(s=>({address:s}))
+  };
+  const r2 = await postComputeRoutes(apiKey, bodyPlain);
+  logDebug("Tentativa #2 (sem duration)", r2.data);
+
+  if(!r2.res.ok) throw new Error(r2.data?.error?.message||`HTTP ${r2.res.status}`);
+  const route = r2.data?.routes?.[0];
   if(!route) throw new Error("Nenhuma rota retornada.");
 
   const idx=route.optimizedIntermediateWaypointIndex||[];
   const orderedStops=idx.length?idx.map(i=>stops[i]):stops.slice();
-  return {route,orderedStops};
+  return {route,orderedStops,durationAccepted:false};
 }
 
 function buildGoogleMapsWebUrl(originRef,destination,orderedStops,travelMode){
@@ -260,13 +315,12 @@ function openInGoogleMapsApp(){ openInGoogleMapsWeb(); }
 
 async function showMapFlow(){
   debugLines=[]; byId("debug").textContent="";
-  byId("summary").innerHTML=""; byId("legDetails").innerHTML="";
+  byId("summary").innerHTML=""; byId("legDetails").innerHTML=""; byId("payloadPreview").textContent="";
 
   const apiKey=byId("apiKey").value.trim();
   const destination=byId("destination").value.trim();
   const stops=parseLines(byId("stops").value);
 
-  // protegidos com fallback
   const travelMode=getVal("travelMode","DRIVE");
   const routingPreference=getVal("routingPreference","TRAFFIC_AWARE");
   const optimizeWaypointOrder=getVal("optimizeOrder","true")==="true";
@@ -282,7 +336,7 @@ async function showMapFlow(){
   await loadMapsScript(apiKey);
 
   setStatus("2/3 Calculando rota...","warn");
-  const {route,orderedStops}=await computeRoute(
+  const {route,orderedStops,durationAccepted}=await computeRoute(
     apiKey,originInput.forApi,destination,stops,routingPreference,travelMode,optimizeWaypointOrder,departureISO
   );
 
@@ -320,6 +374,9 @@ async function showMapFlow(){
   if(!bounds.isEmpty()) map.fitBounds(bounds);
 
   const totalTransit=rows.reduce((a,b)=>a+b.sec,0);
+  const minutesPerStop=Math.max(0,parseInt(getVal("minutesPerStop","0"),10)||0);
+  const stopSec = orderedStops.length * minutesPerStop * 60;
+  const adjusted = totalTransit + stopSec;
 
   lastOrigin=originInput.text;
   lastOriginCoord=originInput.coord;
@@ -329,8 +386,11 @@ async function showMapFlow(){
   byId("summary").innerHTML=`
     <p><strong>Origem:</strong> ${originInput.label}</p>
     <p><strong>Modo:</strong> ${travelMode}</p>
+    <p><strong>Duration em intermediates aceito:</strong> ${durationAccepted ? "SIM" : "NÃO (fallback sem duration)"}</p>
     <p><strong>Distância total:</strong> ${((route.distanceMeters||0)/1000).toFixed(2)} km</p>
     <p><strong>Tempo em trânsito:</strong> ${formatSec(totalTransit)}</p>
+    <p><strong>Tempo de parada (estimado):</strong> ${formatSec(stopSec)}</p>
+    <p><strong>Tempo total ajustado:</strong> ${formatSec(adjusted)}</p>
   `;
 
   byId("legDetails").innerHTML=`
