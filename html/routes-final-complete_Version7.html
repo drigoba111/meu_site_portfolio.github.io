@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rota completa: origem por endereço/localização + tipo de condução (Version8)</title>
+  <title>Rota completa: origem por endereço/localização + tipo de condução + tempo de parada (Version9)</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; }
     .wrap { display:grid; grid-template-columns:460px 1fr; gap:12px; padding:12px; }
@@ -31,7 +31,7 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h3 style="margin-top:0">Rota completa (Version8)</h3>
+    <h3 style="margin-top:0">Rota completa (Version9)</h3>
 
     <label>API Key</label>
     <input id="apiKey" type="password" placeholder="YOUR_API_KEY" />
@@ -90,6 +90,13 @@ Parque Ibirapuera, São Paulo - SP</textarea>
         </select>
       </div>
       <div>
+        <label>Minutos por parada</label>
+        <input id="minutesPerStop" type="number" min="0" step="1" value="10" />
+      </div>
+    </div>
+
+    <div class="row">
+      <div>
         <label>Partida</label>
         <select id="departureMode">
           <option value="soon" selected>Sair em +5 minutos</option>
@@ -97,10 +104,11 @@ Parque Ibirapuera, São Paulo - SP</textarea>
           <option value="none">Não enviar departureTime</option>
         </select>
       </div>
+      <div>
+        <label>Data/hora (manual)</label>
+        <input id="manualDeparture" type="datetime-local" />
+      </div>
     </div>
-
-    <label>Data/hora (manual)</label>
-    <input id="manualDeparture" type="datetime-local" />
 
     <div class="actions">
       <button id="btnShow">Quero ver no mapa</button>
@@ -590,7 +598,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
 
     const modeMap = {
       DRIVE: "driving",
-      TWO_WHEELER: "driving", // web maps não tem moto explícito
+      TWO_WHEELER: "driving",
       BICYCLE: "bicycling",
       WALK: "walking"
     };
@@ -656,6 +664,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     const destination = document.getElementById("destination").value.trim();
     const stops = parseStops(document.getElementById("stops").value);
     const travelMode = document.getElementById("travelMode").value;
+    const minutesPerStop = Math.max(0, parseInt(document.getElementById("minutesPerStop").value || "0", 10) || 0);
 
     if (!apiKey) throw new Error("Informe a API key.");
     if (!destination) throw new Error("Informe destino.");
@@ -724,14 +733,20 @@ Parque Ibirapuera, São Paulo - SP</textarea>
       WALK: "A pé"
     }[travelMode] || travelMode;
 
+    const stopSeconds = result.orderedStops.length * minutesPerStop * 60;
+    const adjustedTotalSec = result.totalDurationSec + stopSeconds;
+
     document.getElementById("summary").innerHTML = `
       <p><strong>Origem usada:</strong> ${originInput.label}</p>
       <p><strong>Tipo de condução:</strong> ${modeLabel}</p>
       <p><strong>Preferência de trânsito:</strong> ${routingPreference}</p>
       <p><strong>Otimização de paradas:</strong> ${optimizeWaypointOrder ? "Sim" : "Não"}</p>
       <p><strong>Total de paradas:</strong> ${result.orderedStops.length}</p>
+      <p><strong>Minutos por parada:</strong> ${minutesPerStop} min</p>
       <p><strong>Distância total:</strong> ${(result.totalDistance / 1000).toFixed(2)} km</p>
-      <p><strong>Duração total:</strong> ${formatSec(result.totalDurationSec)}</p>
+      <p><strong>Tempo em trânsito:</strong> ${formatSec(result.totalDurationSec)}</p>
+      <p><strong>Tempo nas paradas:</strong> ${formatSec(stopSeconds)}</p>
+      <p><strong>Tempo total ajustado:</strong> ${formatSec(adjustedTotalSec)}</p>
       <p><strong>Sequência:</strong> I → ${result.orderedStops.map((_, i) => i + 1).join(" → ") || "(sem paradas)"} → F</p>
       <ol>${result.orderedStops.map(s => `<li>${s}</li>`).join("")}</ol>
     `;
@@ -744,7 +759,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     }
 
     document.getElementById("legDetails").innerHTML = renderLegTable(result.perLegDetails);
-    setStatus("4/4 OK: rota renderizada com tipo de condução.", "ok");
+    setStatus("4/4 OK: rota renderizada com tempo adicional de paradas.", "ok");
   }
 
   document.getElementById("originMode").addEventListener("change", onOriginModeChange);
