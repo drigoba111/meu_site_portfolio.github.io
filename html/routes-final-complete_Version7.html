@@ -72,6 +72,21 @@ Parque Ibirapuera, São Paulo - SP</textarea>
       </div>
     </div>
 
+    <!-- NOVO -->
+<div class="row">
+  <div>
+    <label>Enviar vehicleStopover</label>
+    <select id="sendVehicleStopover">
+      <option value="auto" selected>Auto (somente DRIVE / TWO_WHEELER)</option>
+      <option value="true">Sempre enviar (pode dar erro)</option>
+      <option value="false">Nunca enviar</option>
+    </select>
+  </div>
+  <div class="muted" style="align-self:end">
+    Dica: WALK/BICYCLE não aceitam vehicleStopover.
+  </div>
+</div>
+
     <div class="row">
       <div>
         <label>Tipo de condução</label>
@@ -240,12 +255,17 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
   const minutesPerStop = Math.max(0, parseInt(getVal("minutesPerStop","0"),10)||0);
 
   const isMotorized = (travelMode === "DRIVE" || travelMode === "TWO_WHEELER");
-  const useVehicleStopover = isMotorized;
 
   // routingPreference NÃO pode em WALK/BICYCLE
   const canUseRoutingPreference = isMotorized;
 
-  // baseBody sem routingPreference por padrão; adiciona só se permitido
+  // Novo: controle do vehicleStopover
+  const sendVehicleStopoverMode = getVal("sendVehicleStopover", "auto"); // auto | true | false
+  const useVehicleStopover =
+    sendVehicleStopoverMode === "true" ? true :
+    sendVehicleStopoverMode === "false" ? false :
+    isMotorized; // auto
+
   const baseBody = {
     origin: originForApi,
     destination: { address: destination },
@@ -256,9 +276,8 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
   };
 
   if (canUseRoutingPreference) {
-    baseBody.routingPreference = routingPreference; // TRAFFIC_*
+    baseBody.routingPreference = routingPreference;
   } else {
-    // log para ficar claro no debug
     logDebug("routingPreference removido: inválido para WALK/BICYCLE.", { travelMode, routingPreference });
   }
 
@@ -270,23 +289,23 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
     return wp;
   });
 
-  // tentativa 1: duration + (vehicleStopover se permitido)
+  // tentativa 1: duration + (vehicleStopover se habilitado)
   if (tryDuration) {
     const bodyWithDuration = {
       ...baseBody,
       intermediates: baseIntermediates.map(wp => ({
         ...wp,
-        duration: `${minutesPerStop * 60}s` // experimental (pode falhar)
+        duration: `${minutesPerStop * 60}s` // experimental
       }))
     };
 
     const r1 = await postComputeRoutes(apiKey, bodyWithDuration);
-    logDebug("Tentativa #1 (duration + campos condicionais)", r1.data);
+    logDebug("Tentativa #1 (duration + vehicleStopover opcional)", r1.data);
 
     if (r1.res.ok && r1.data?.routes?.[0]) {
       const route = r1.data.routes[0];
       const idx = route.optimizedIntermediateWaypointIndex || [];
-      const orderedStops = idx.length ? idx.map(i => stops[i]) : stops.slice();
+      const orderedStops = idx.length ? idx.map(i=>stops[i]) : stops.slice();
       return { route, orderedStops, durationAccepted: true, vehicleStopoverSent: useVehicleStopover };
     }
 
@@ -295,20 +314,16 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
   }
 
   // tentativa 2: sem duration
-  const bodyPlain = {
-    ...baseBody,
-    intermediates: baseIntermediates
-  };
-
+  const bodyPlain = { ...baseBody, intermediates: baseIntermediates };
   const r2 = await postComputeRoutes(apiKey, bodyPlain);
-  logDebug("Tentativa #2 (sem duration, campos condicionais)", r2.data);
+  logDebug("Tentativa #2 (sem duration, vehicleStopover opcional)", r2.data);
 
   if (!r2.res.ok) throw new Error(r2.data?.error?.message || `HTTP ${r2.res.status}`);
   const route = r2.data?.routes?.[0];
   if (!route) throw new Error("Nenhuma rota retornada.");
 
   const idx = route.optimizedIntermediateWaypointIndex || [];
-  const orderedStops = idx.length ? idx.map(i => stops[i]) : stops.slice();
+  const orderedStops = idx.length ? idx.map(i=>stops[i]) : stops.slice();
   return { route, orderedStops, durationAccepted: false, vehicleStopoverSent: useVehicleStopover };
 }
 
