@@ -239,49 +239,59 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
   const tryDuration = getVal("tryIntermediateDuration","true")==="true";
   const minutesPerStop = Math.max(0, parseInt(getVal("minutesPerStop","0"),10)||0);
 
+  const isMotorized = (travelMode === "DRIVE" || travelMode === "TWO_WHEELER");
+  const useVehicleStopover = isMotorized;
+
+  // routingPreference NÃO pode em WALK/BICYCLE
+  const canUseRoutingPreference = isMotorized;
+
+  // baseBody sem routingPreference por padrão; adiciona só se permitido
   const baseBody = {
     origin: originForApi,
-    destination: {address: destination},
+    destination: { address: destination },
     travelMode,
-    routingPreference,
     optimizeWaypointOrder,
-    languageCode:"pt-BR",
-    units:"METRIC"
+    languageCode: "pt-BR",
+    units: "METRIC"
   };
-  if(departureISO) baseBody.departureTime = departureISO;
 
-  // vehicleStopover só para DRIVE e TWO_WHEELER
-  const useVehicleStopover = (travelMode === "DRIVE" || travelMode === "TWO_WHEELER");
+  if (canUseRoutingPreference) {
+    baseBody.routingPreference = routingPreference; // TRAFFIC_*
+  } else {
+    // log para ficar claro no debug
+    logDebug("routingPreference removido: inválido para WALK/BICYCLE.", { travelMode, routingPreference });
+  }
+
+  if (departureISO) baseBody.departureTime = departureISO;
 
   const baseIntermediates = stops.map(s => {
     const wp = { address: s };
-    if(useVehicleStopover) wp.vehicleStopover = true;
+    if (useVehicleStopover) wp.vehicleStopover = true;
     return wp;
   });
 
-  // tentativa 1: vehicleStopover + duration (experimental)
-  if(tryDuration){
+  // tentativa 1: duration + (vehicleStopover se permitido)
+  if (tryDuration) {
     const bodyWithDuration = {
       ...baseBody,
       intermediates: baseIntermediates.map(wp => ({
         ...wp,
-        duration: `${minutesPerStop * 60}s`
+        duration: `${minutesPerStop * 60}s` // experimental (pode falhar)
       }))
     };
 
     const r1 = await postComputeRoutes(apiKey, bodyWithDuration);
-    logDebug("Tentativa #1 (com duration + vehicleStopover condicional)", r1.data);
+    logDebug("Tentativa #1 (duration + campos condicionais)", r1.data);
 
-    if(r1.res.ok && r1.data?.routes?.[0]){
-      logDebug("Campo duration em intermediates aceito nesta execução.", null);
+    if (r1.res.ok && r1.data?.routes?.[0]) {
       const route = r1.data.routes[0];
       const idx = route.optimizedIntermediateWaypointIndex || [];
-      const orderedStops = idx.length ? idx.map(i=>stops[i]) : stops.slice();
-      return {route, orderedStops, durationAccepted:true, vehicleStopoverSent:useVehicleStopover};
+      const orderedStops = idx.length ? idx.map(i => stops[i]) : stops.slice();
+      return { route, orderedStops, durationAccepted: true, vehicleStopoverSent: useVehicleStopover };
     }
 
     const errMsg = r1.data?.error?.message || `HTTP ${r1.res.status}`;
-    logDebug("Campo duration em intermediates NÃO suportado/rejeitado. Fallback automático.", {error: errMsg});
+    logDebug("duration rejeitado/não suportado. Fallback sem duration.", { error: errMsg });
   }
 
   // tentativa 2: sem duration
@@ -289,16 +299,17 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
     ...baseBody,
     intermediates: baseIntermediates
   };
+
   const r2 = await postComputeRoutes(apiKey, bodyPlain);
-  logDebug("Tentativa #2 (sem duration, vehicleStopover condicional)", r2.data);
+  logDebug("Tentativa #2 (sem duration, campos condicionais)", r2.data);
 
-  if(!r2.res.ok) throw new Error(r2.data?.error?.message||`HTTP ${r2.res.status}`);
+  if (!r2.res.ok) throw new Error(r2.data?.error?.message || `HTTP ${r2.res.status}`);
   const route = r2.data?.routes?.[0];
-  if(!route) throw new Error("Nenhuma rota retornada.");
+  if (!route) throw new Error("Nenhuma rota retornada.");
 
-  const idx=route.optimizedIntermediateWaypointIndex||[];
-  const orderedStops=idx.length?idx.map(i=>stops[i]):stops.slice();
-  return {route,orderedStops,durationAccepted:false,vehicleStopoverSent:useVehicleStopover};
+  const idx = route.optimizedIntermediateWaypointIndex || [];
+  const orderedStops = idx.length ? idx.map(i => stops[i]) : stops.slice();
+  return { route, orderedStops, durationAccepted: false, vehicleStopoverSent: useVehicleStopover };
 }
 
 function buildGoogleMapsWebUrl(originRef,destination,orderedStops,travelMode){
