@@ -250,11 +250,14 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
   };
   if(departureISO) baseBody.departureTime = departureISO;
 
-  // Sempre enviar vehicleStopover
-  const baseIntermediates = stops.map(s => ({
-    address: s,
-    vehicleStopover: true
-  }));
+  // vehicleStopover só para DRIVE e TWO_WHEELER
+  const useVehicleStopover = (travelMode === "DRIVE" || travelMode === "TWO_WHEELER");
+
+  const baseIntermediates = stops.map(s => {
+    const wp = { address: s };
+    if(useVehicleStopover) wp.vehicleStopover = true;
+    return wp;
+  });
 
   // tentativa 1: vehicleStopover + duration (experimental)
   if(tryDuration){
@@ -267,27 +270,27 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
     };
 
     const r1 = await postComputeRoutes(apiKey, bodyWithDuration);
-    logDebug("Tentativa #1 (vehicleStopover + duration)", r1.data);
+    logDebug("Tentativa #1 (com duration + vehicleStopover condicional)", r1.data);
 
     if(r1.res.ok && r1.data?.routes?.[0]){
       logDebug("Campo duration em intermediates aceito nesta execução.", null);
       const route = r1.data.routes[0];
       const idx = route.optimizedIntermediateWaypointIndex || [];
       const orderedStops = idx.length ? idx.map(i=>stops[i]) : stops.slice();
-      return {route, orderedStops, durationAccepted:true, vehicleStopoverSent:true};
+      return {route, orderedStops, durationAccepted:true, vehicleStopoverSent:useVehicleStopover};
     }
 
     const errMsg = r1.data?.error?.message || `HTTP ${r1.res.status}`;
-    logDebug("Campo duration em intermediates NÃO suportado/rejeitado. Fallback automático para vehicleStopover sem duration.", {error: errMsg});
+    logDebug("Campo duration em intermediates NÃO suportado/rejeitado. Fallback automático.", {error: errMsg});
   }
 
-  // tentativa 2: vehicleStopover sem duration
+  // tentativa 2: sem duration
   const bodyPlain = {
     ...baseBody,
     intermediates: baseIntermediates
   };
   const r2 = await postComputeRoutes(apiKey, bodyPlain);
-  logDebug("Tentativa #2 (vehicleStopover sem duration)", r2.data);
+  logDebug("Tentativa #2 (sem duration, vehicleStopover condicional)", r2.data);
 
   if(!r2.res.ok) throw new Error(r2.data?.error?.message||`HTTP ${r2.res.status}`);
   const route = r2.data?.routes?.[0];
@@ -295,7 +298,7 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
 
   const idx=route.optimizedIntermediateWaypointIndex||[];
   const orderedStops=idx.length?idx.map(i=>stops[i]):stops.slice();
-  return {route,orderedStops,durationAccepted:false,vehicleStopoverSent:true};
+  return {route,orderedStops,durationAccepted:false,vehicleStopoverSent:useVehicleStopover};
 }
 
 function buildGoogleMapsWebUrl(originRef,destination,orderedStops,travelMode){
