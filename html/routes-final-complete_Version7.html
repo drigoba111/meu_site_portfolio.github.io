@@ -3,15 +3,17 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rota completa: origem por endereço/localização + tipo de condução + tempo de parada (Version9)</title>
+  <title>Rota completa + payload de tempos de parada (Version10)</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; }
-    .wrap { display:grid; grid-template-columns:460px 1fr; gap:12px; padding:12px; }
+    .wrap { display:grid; grid-template-columns:500px 1fr; gap:12px; padding:12px; }
     .panel { border:1px solid #ddd; border-radius:10px; padding:12px; }
     #map { width:100%; height:92vh; border:1px solid #ddd; border-radius:10px; background:#f7f7f7; }
     label { display:block; margin-top:8px; font-weight:600; }
     input, textarea, button, select { width:100%; box-sizing:border-box; padding:8px; margin-top:4px; }
-    textarea { min-height:160px; }
+    textarea { min-height:120px; }
+    #stops { min-height:140px; }
+    #stopDurations { min-height:100px; }
     .row { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
     .actions { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:8px; }
     .ok{ color:#0b8043; font-weight:700 }
@@ -31,7 +33,7 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h3 style="margin-top:0">Rota completa (Version9)</h3>
+    <h3 style="margin-top:0">Rota completa (Version10)</h3>
 
     <label>API Key</label>
     <input id="apiKey" type="password" placeholder="YOUR_API_KEY" />
@@ -61,7 +63,18 @@ Shopping Eldorado, São Paulo - SP
 Museu da Imagem e do Som, São Paulo - SP
 Parque Ibirapuera, São Paulo - SP</textarea>
 
+    <label>Minutos por parada (opcional, uma linha por parada na mesma ordem)</label>
+    <textarea id="stopDurations" placeholder="Exemplo:
+15
+10
+20
+5"></textarea>
+
     <div class="row">
+      <div>
+        <label>Minutos padrão por parada</label>
+        <input id="minutesPerStopDefault" type="number" min="0" step="1" value="10" />
+      </div>
       <div>
         <label>Tipo de condução</label>
         <select id="travelMode">
@@ -71,6 +84,9 @@ Parque Ibirapuera, São Paulo - SP</textarea>
           <option value="WALK">A pé</option>
         </select>
       </div>
+    </div>
+
+    <div class="row">
       <div>
         <label>Preferência de trânsito</label>
         <select id="routingPreference">
@@ -79,19 +95,12 @@ Parque Ibirapuera, São Paulo - SP</textarea>
           <option value="TRAFFIC_AWARE_OPTIMAL">TRAFFIC_AWARE_OPTIMAL</option>
         </select>
       </div>
-    </div>
-
-    <div class="row">
       <div>
         <label>Otimizar ordem das paradas</label>
         <select id="optimizeOrder">
           <option value="true" selected>Sim</option>
           <option value="false">Não</option>
         </select>
-      </div>
-      <div>
-        <label>Minutos por parada</label>
-        <input id="minutesPerStop" type="number" min="0" step="1" value="10" />
       </div>
     </div>
 
@@ -116,24 +125,19 @@ Parque Ibirapuera, São Paulo - SP</textarea>
       <button id="btnOpenGoogleMapsApp">Abrir Google Maps (app)</button>
     </div>
 
-    <div class="legend">
-      <div><span class="chip start">I</span> Início</div>
-      <div><span class="chip stop">1..N</span> Paradas intermediárias</div>
-      <div><span class="chip end">F</span> Fim</div>
-    </div>
-
     <div id="status" style="margin-top:10px;"></div>
     <div id="summary"></div>
     <div id="legDetails"></div>
 
     <details style="margin-top:10px;">
+      <summary>Payload custom (para backend otimizar com tempo de parada)</summary>
+      <pre id="payloadPreview"></pre>
+    </details>
+
+    <details style="margin-top:10px;">
       <summary>Logs/Debug</summary>
       <pre id="debug"></pre>
     </details>
-
-    <p class="small">
-      Geolocalização: use em <b>https</b> ou <b>http://localhost</b>. Em <b>file://</b> pode falhar.
-    </p>
   </div>
 
   <div class="panel">
@@ -142,646 +146,289 @@ Parque Ibirapuera, São Paulo - SP</textarea>
 </div>
 
 <script>
+  // Mantive estrutura principal; aqui só foco no ajuste de tempos de parada em payload e soma final.
   const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
-  const MAX_INTERMEDIATES = 25;
 
   let map, markers = [], polylines = [];
-  let debugLines = [];
   let lastOrderedStops = [];
-  let lastOrigin = null;
-  let lastOriginCoord = null;
-  let lastDestination = null;
+  let lastOrigin = null, lastOriginCoord = null, lastDestination = null;
   let deviceLocation = null;
+  let debugLines = [];
 
-  function logDebug(msg, obj) {
-    const line = obj ? `${msg}\n${JSON.stringify(obj, null, 2)}` : msg;
-    debugLines.push(line);
-    document.getElementById("debug").textContent = debugLines.join("\n\n---\n\n");
-  }
-
-  function setStatus(msg, type = "ok") {
-    const el = document.getElementById("status");
-    el.className = type;
-    el.textContent = msg;
-  }
-
-  function parseStops(t) {
-    return t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
-  }
-
-  function chunk(arr, size) {
-    const out = [];
-    for (let i = 0; i < arr.length; i += size) out.push(arr.slice(i, i + size));
-    return out;
-  }
-
-  function clearMap() {
-    markers.forEach(m => m.setMap(null));
-    markers = [];
-    polylines.forEach(p => p.setMap(null));
-    polylines = [];
-  }
+  const logDebug = (m,o)=>{ const l=o?`${m}\n${JSON.stringify(o,null,2)}`:m; debugLines.push(l); document.getElementById("debug").textContent=debugLines.join("\n\n---\n\n"); };
+  const setStatus = (m,t="ok")=>{ const e=document.getElementById("status"); e.className=t; e.textContent=m; };
+  const parseStops = t => t.split(/\r?\n/).map(s=>s.trim()).filter(Boolean);
+  const parseDurationLines = t => t.split(/\r?\n/).map(s=>s.trim()).filter(Boolean).map(v=>Math.max(0, parseInt(v,10)||0));
+  const durationToSec = d => { const n=parseInt(String(d||"").replace("s",""),10); return Number.isNaN(n)?0:n; };
+  const formatSec = sec => `${Math.floor(sec/3600)}h ${Math.floor((sec%3600)/60)}min`;
+  const formatLatLng = ll => `${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
 
   function ensureMap() {
     if (!window.google || !google.maps) throw new Error("Maps JS não carregou.");
-    if (!map) {
-      map = new google.maps.Map(document.getElementById("map"), {
-        center: { lat: -23.5505, lng: -46.6333 },
-        zoom: 11,
-        mapTypeControl: false,
-        streetViewControl: false
-      });
-    }
+    if (!map) map = new google.maps.Map(document.getElementById("map"), { center:{lat:-23.5505,lng:-46.6333}, zoom:11 });
   }
-
-  function addMarker(position, labelText, title, kind, legInfoText = "") {
-    const colors = { start:"#0b8043", stop:"#1a73e8", end:"#c5221f" };
-    const fullTitle = legInfoText ? `${title} • ${legInfoText}` : title;
-
+  function clearMap(){ markers.forEach(m=>m.setMap(null)); markers=[]; polylines.forEach(p=>p.setMap(null)); polylines=[]; }
+  function addMarker(position, labelText, title, kind, legInfoText="") {
+    const colors={start:"#0b8043",stop:"#1a73e8",end:"#c5221f"};
     const marker = new google.maps.Marker({
-      position,
-      map,
-      title: fullTitle,
-      label: { text: labelText, color: "#fff", fontWeight: "700" },
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        fillColor: colors[kind],
-        fillOpacity: 1,
-        strokeColor: "#fff",
-        strokeWeight: 2,
-        scale: 11
-      }
+      position, map, title: legInfoText?`${title} • ${legInfoText}`:title,
+      label:{text:labelText,color:"#fff",fontWeight:"700"},
+      icon:{path:google.maps.SymbolPath.CIRCLE,fillColor:colors[kind],fillOpacity:1,strokeColor:"#fff",strokeWeight:2,scale:11}
     });
-
-    const infoHtml = `
-      <div style="font-size:13px;line-height:1.4">
-        <strong>${title}</strong><br/>
-        ${kind === "start" ? "Tipo: Início" : kind === "end" ? "Tipo: Fim" : "Tipo: Parada intermediária"}
-        ${legInfoText ? `<br/><strong>Trecho anterior:</strong> ${legInfoText}` : ""}
-      </div>
-    `;
-    const info = new google.maps.InfoWindow({ content: infoHtml });
-    marker.addListener("click", () => info.open({ anchor: marker, map }));
-
     markers.push(marker);
   }
+  function decodePolyline(encoded){let i=0,lat=0,lng=0,c=[];while(i<encoded.length){let b,s=0,r=0;do{b=encoded.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}while(b>=0x20);lat+=(r&1)?~(r>>1):(r>>1);s=0;r=0;do{b=encoded.charCodeAt(i++)-63;r|=(b&0x1f)<<s;s+=5;}while(b>=0x20);lng+=(r&1)?~(r>>1):(r>>1);c.push({lat:lat/1e5,lng:lng/1e5});}return c;}
 
-  function decodePolyline(encoded) {
-    let index = 0, lat = 0, lng = 0, coordinates = [];
-    while (index < encoded.length) {
-      let b, shift = 0, result = 0;
-      do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-      lat += (result & 1) ? ~(result >> 1) : (result >> 1);
-      shift = 0; result = 0;
-      do { b = encoded.charCodeAt(index++) - 63; result |= (b & 0x1f) << shift; shift += 5; } while (b >= 0x20);
-      lng += (result & 1) ? ~(result >> 1) : (result >> 1);
-      coordinates.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  function getDepartureTimeISO(){
+    const mode=document.getElementById("departureMode").value;
+    const manual=document.getElementById("manualDeparture").value;
+    if(mode==="none") return null;
+    if(mode==="soon") return new Date(Date.now()+5*60*1000).toISOString();
+    if(!manual) throw new Error("Preencha a data/hora manual.");
+    const d=new Date(manual); if(isNaN(d.getTime())) throw new Error("Data/hora manual inválida.");
+    return d.toISOString();
+  }
+
+  function explainGeoError(err){ if(!err) return "Erro desconhecido."; if(err.code===1) return "Permissão negada."; if(err.code===2) return "Posição indisponível."; if(err.code===3) return "Timeout de geolocalização."; return err.message||"Falha geolocalização."; }
+  async function captureDeviceLocation(){
+    if(!window.isSecureContext && location.hostname!=="localhost" && location.hostname!=="127.0.0.1") throw new Error("Abra em HTTPS/localhost.");
+    if(!navigator.geolocation) throw new Error("Geolocalização não suportada.");
+    const pos = await new Promise((res,rej)=>navigator.geolocation.getCurrentPosition(res,rej,{enableHighAccuracy:true,timeout:15000,maximumAge:0}));
+    deviceLocation={lat:pos.coords.latitude,lng:pos.coords.longitude,accuracy:pos.coords.accuracy};
+    document.getElementById("originDeviceInfo").textContent=`Localização: ${formatLatLng(deviceLocation)} (±${Math.round(deviceLocation.accuracy)}m)`;
+  }
+  async function ensureDeviceLocationIfNeeded(){ if(document.getElementById("originMode").value==="device" && !deviceLocation) await captureDeviceLocation(); }
+  function getOriginInput(){
+    if(document.getElementById("originMode").value==="device"){
+      if(!deviceLocation) throw new Error("Sem localização atual.");
+      return { forApi:{ location:{ latLng:{ latitude:deviceLocation.lat, longitude:deviceLocation.lng } } }, label:`Minha localização (${formatLatLng(deviceLocation)})`, coord:{...deviceLocation}, text:null };
     }
-    return coordinates;
+    const originText=document.getElementById("origin").value.trim();
+    if(!originText) throw new Error("Informe origem.");
+    return { forApi:{ address:originText }, label:originText, coord:null, text:originText };
   }
 
-  function getDepartureTimeISO() {
-    const mode = document.getElementById("departureMode").value;
-    const manual = document.getElementById("manualDeparture").value;
+  function buildPerStopDurations(orderedStops){
+    const defaultMin = Math.max(0, parseInt(document.getElementById("minutesPerStopDefault").value||"0",10)||0);
+    const customLines = parseDurationLines(document.getElementById("stopDurations").value);
 
-    if (mode === "none") return null;
-    if (mode === "soon") return new Date(Date.now() + 5 * 60 * 1000).toISOString();
-
-    if (mode === "manual") {
-      if (!manual) throw new Error("Preencha a data/hora manual.");
-      const d = new Date(manual);
-      if (isNaN(d.getTime())) throw new Error("Data/hora manual inválida.");
-      if (d.getTime() < Date.now() + 60 * 1000) throw new Error("A data/hora manual precisa estar no futuro.");
-      return d.toISOString();
-    }
-    return null;
+    // Aplica por índice da ordem final (simples para frontend).
+    // Se quiser mapear por endereço exato, também posso ajustar.
+    return orderedStops.map((stop, idx) => ({
+      stop,
+      stopDurationMinutes: customLines[idx] ?? defaultMin
+    }));
   }
 
-  function durationToSec(d) {
-    const n = parseInt(String(d || "").replace("s", ""), 10);
-    return Number.isNaN(n) ? 0 : n;
-  }
-
-  function formatSec(sec) {
-    const h = Math.floor(sec / 3600);
-    const m = Math.floor((sec % 3600) / 60);
-    return `${h}h ${m}min`;
-  }
-
-  function formatLatLng(ll) {
-    return `${ll.lat.toFixed(6)}, ${ll.lng.toFixed(6)}`;
-  }
-
-  function explainGeoError(err) {
-    if (!err) return "Erro desconhecido ao capturar localização.";
-    switch (err.code) {
-      case 1: return "Permissão negada para localização. Libere no navegador/site.";
-      case 2: return "Posição indisponível no momento. Tente novamente.";
-      case 3: return "Timeout ao obter localização. Tente novamente em área com melhor sinal.";
-      default: return err.message || "Falha ao capturar localização.";
-    }
-  }
-
-  async function captureDeviceLocation() {
-    if (!window.isSecureContext && location.hostname !== "localhost" && location.hostname !== "127.0.0.1") {
-      throw new Error("Contexto inseguro. Abra em HTTPS ou localhost (não file://).");
-    }
-    if (!navigator.geolocation) throw new Error("Geolocalização não suportada neste navegador.");
-
-    const pos = await new Promise((resolve, reject) => {
-      navigator.geolocation.getCurrentPosition(resolve, reject, {
-        enableHighAccuracy: true,
-        timeout: 15000,
-        maximumAge: 0
-      });
-    });
-
-    deviceLocation = {
-      lat: pos.coords.latitude,
-      lng: pos.coords.longitude,
-      accuracy: pos.coords.accuracy
+  function renderPayloadPreview(originInput, destination, orderedStops, routingPreference, travelMode){
+    const perStop = buildPerStopDurations(orderedStops);
+    const payload = {
+      origin: originInput.coord ? { lat: originInput.coord.lat, lng: originInput.coord.lng } : originInput.text,
+      destination,
+      travelMode,
+      routingPreference,
+      stops: perStop
     };
-
-    document.getElementById("originDeviceInfo").textContent =
-      `Localização capturada: ${formatLatLng(deviceLocation)} (±${Math.round(deviceLocation.accuracy)}m)`;
+    document.getElementById("payloadPreview").textContent = JSON.stringify(payload, null, 2);
+    return payload;
   }
 
-  async function ensureDeviceLocationIfNeeded() {
-    const mode = document.getElementById("originMode").value;
-    if (mode !== "device") return;
-
-    if (!deviceLocation) {
-      setStatus("Capturando localização automaticamente...", "warn");
-      try {
-        await captureDeviceLocation();
-      } catch (e) {
-        throw new Error(explainGeoError(e));
-      }
-    }
-  }
-
-  function getOriginInput() {
-    const mode = document.getElementById("originMode").value;
-    if (mode === "device") {
-      if (!deviceLocation) throw new Error("Não foi possível obter sua localização atual.");
-      return {
-        forApi: {
-          location: {
-            latLng: {
-              latitude: deviceLocation.lat,
-              longitude: deviceLocation.lng
-            }
-          }
-        },
-        label: `Minha localização (${formatLatLng(deviceLocation)})`,
-        coord: { ...deviceLocation },
-        text: null
-      };
-    }
-
-    const originText = document.getElementById("origin").value.trim();
-    if (!originText) throw new Error("Informe a origem por endereço.");
-    return {
-      forApi: { address: originText },
-      label: originText,
-      coord: null,
-      text: originText
-    };
-  }
-
-  async function computeSingleRoute(apiKey, originApiObj, destination, intermediates, routingPreference, travelMode, optimizeWaypointOrder, departureISO) {
-    async function attempt(optimize) {
-      const body = {
-        origin: originApiObj,
-        destination: { address: destination },
-        intermediates: intermediates.map(s => ({ address: s })),
-        travelMode,
-        routingPreference,
-        optimizeWaypointOrder: optimize,
-        languageCode: "pt-BR",
-        units: "METRIC"
-      };
-      if (departureISO) body.departureTime = departureISO;
-
-      const res = await fetch(ROUTES_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "X-Goog-Api-Key": apiKey,
-          "X-Goog-FieldMask": [
-            "routes.distanceMeters",
-            "routes.duration",
-            "routes.polyline.encodedPolyline",
-            "routes.optimizedIntermediateWaypointIndex",
-            "routes.legs.distanceMeters",
-            "routes.legs.duration",
-            "routes.legs.steps.startLocation.latLng",
-            "routes.legs.steps.endLocation.latLng"
-          ].join(",")
-        },
-        body: JSON.stringify(body)
-      });
-
-      const text = await res.text();
-      let data = {};
-      try { data = JSON.parse(text); } catch { data = { raw: text }; }
-      logDebug(`Resposta bloco HTTP ${res.status} (opt=${optimize})`, data);
-
-      if (!res.ok) {
-        const msg = data?.error?.message || `Compute Routes HTTP ${res.status}`;
-        throw new Error(msg);
-      }
-
-      const route = data.routes?.[0];
-      if (!route) return null;
-
-      const idx = route.optimizedIntermediateWaypointIndex || [];
-      const orderedIntermediates = idx.length ? idx.map(i => intermediates[i]) : intermediates.slice();
-
-      return { route, orderedIntermediates };
-    }
-
-    let out = await attempt(optimizeWaypointOrder);
-    if (out) return out;
-
-    if (optimizeWaypointOrder) {
-      out = await attempt(false);
-      if (out) return out;
-    }
-
-    return null;
-  }
-
-  function splitForFallback(intermediates, destination) {
-    const n = intermediates.length;
-    if (n <= 1) return null;
-    const cut = Math.ceil(n / 2);
-    const leftInter = intermediates.slice(0, cut - 1);
-    const midDest = intermediates[cut - 1];
-    const rightInter = intermediates.slice(cut);
-    return {
-      left: { intermediates: leftInter, destination: midDest },
-      right: { intermediates: rightInter, destination }
-    };
-  }
-
-  async function solveBlockWithFallback(apiKey, originApiObj, originLabel, destination, intermediates, routingPreference, travelMode, optimizeWaypointOrder, departureISO) {
-    const direct = await computeSingleRoute(apiKey, originApiObj, destination, intermediates, routingPreference, travelMode, optimizeWaypointOrder, departureISO);
-    if (direct) {
-      return {
-        ok: true,
-        parts: [{ originLabel, destination, intermediatesOrdered: direct.orderedIntermediates, route: direct.route }]
-      };
-    }
-
-    if (intermediates.length <= 1) {
-      const noStop = await computeSingleRoute(apiKey, originApiObj, destination, [], routingPreference, travelMode, false, departureISO);
-      if (noStop) {
-        return {
-          ok: true,
-          skipped: intermediates.slice(),
-          parts: [{ originLabel, destination, intermediatesOrdered: [], route: noStop.route }]
-        };
-      }
-      return { ok: false, skipped: intermediates.slice(), parts: [] };
-    }
-
-    const split = splitForFallback(intermediates, destination);
-    if (!split) return { ok: false, parts: [] };
-
-    const leftRes = await solveBlockWithFallback(
-      apiKey, originApiObj, originLabel,
-      split.left.destination, split.left.intermediates,
-      routingPreference, travelMode, optimizeWaypointOrder, departureISO
-    );
-
-    const rightOriginApiObj = { address: split.left.destination };
-    const rightRes = await solveBlockWithFallback(
-      apiKey, rightOriginApiObj, split.left.destination,
-      split.right.destination, split.right.intermediates,
-      routingPreference, travelMode, optimizeWaypointOrder, departureISO
-    );
-
-    return {
-      ok: leftRes.ok || rightRes.ok,
-      skipped: [...(leftRes.skipped || []), ...(rightRes.skipped || [])],
-      parts: [...(leftRes.parts || []), ...(rightRes.parts || [])]
-    };
-  }
-
-  async function computeLongRouteWithChunking(apiKey, originInput, end, allStops, routingPreference, travelMode, optimizeWaypointOrder, departureISO) {
-    const groups = chunk(allStops, MAX_INTERMEDIATES);
-    let currentOriginApiObj = originInput.forApi;
-    let currentOriginLabel = originInput.label;
-
-    let totalDistance = 0;
-    let totalDurationSec = 0;
-    const encodedPolylines = [];
-    const orderedStops = [];
-    const pointSeries = [];
-    const skippedStops = [];
-    const perLegDetails = [];
-
-    for (let i = 0; i < groups.length; i++) {
-      const isLast = i === groups.length - 1;
-      const group = groups[i];
-
-      const blockDestination = isLast ? end : group[group.length - 1];
-      const blockIntermediates = isLast ? group : group.slice(0, -1);
-
-      const solved = await solveBlockWithFallback(
-        apiKey, currentOriginApiObj, currentOriginLabel,
-        blockDestination, blockIntermediates,
-        routingPreference, travelMode, optimizeWaypointOrder, departureISO
-      );
-
-      if (!solved.parts.length) throw new Error(`Bloco ${i + 1} sem rota mesmo após fallback.`);
-
-      for (const part of solved.parts) {
-        const route = part.route;
-        const partOriginLabel = part.originLabel;
-        const partDestination = part.destination;
-        const partStopsOrdered = part.intermediatesOrdered;
-
-        totalDistance += route.distanceMeters || 0;
-        totalDurationSec += durationToSec(route.duration);
-        if (route.polyline?.encodedPolyline) encodedPolylines.push(route.polyline.encodedPolyline);
-
-        const partStopsText = [...partStopsOrdered];
-        if (partDestination !== end) partStopsText.push(partDestination);
-        orderedStops.push(...partStopsText);
-
-        const chain = [partOriginLabel, ...partStopsOrdered, partDestination];
-        const legs = route.legs || [];
-        for (let li = 0; li < legs.length; li++) {
-          const leg = legs[li];
-          perLegDetails.push({
-            from: chain[li] || `Ponto ${li}`,
-            to: chain[li + 1] || `Ponto ${li + 1}`,
-            distanceMeters: leg.distanceMeters || 0,
-            durationSec: durationToSec(leg.duration)
-          });
-        }
-
-        const pts = [];
-        if (legs.length) {
-          const fs = legs[0].steps || [];
-          const st = fs[0]?.startLocation?.latLng;
-          if (st) pts.push({ lat: st.latitude, lng: st.longitude });
-          for (const leg of legs) {
-            const steps = leg.steps || [];
-            const ed = steps[steps.length - 1]?.endLocation?.latLng;
-            if (ed) pts.push({ lat: ed.latitude, lng: ed.longitude });
-          }
-        }
-        if (pts.length) {
-          if (pointSeries.length) pointSeries.push(...pts.slice(1));
-          else pointSeries.push(...pts);
-        }
-
-        currentOriginApiObj = { address: partDestination };
-        currentOriginLabel = partDestination;
-      }
-
-      if (solved.skipped?.length) skippedStops.push(...solved.skipped);
-      setStatus(`Processado bloco ${i + 1}/${groups.length}...`, "warn");
-    }
-
-    return { orderedStops, totalDistance, totalDurationSec, encodedPolylines, pointSeries, skippedStops, perLegDetails };
-  }
-
-  function renderLegTable(perLegDetails) {
-    if (!perLegDetails?.length) return "<p>Sem detalhes por trecho.</p>";
-    const rows = perLegDetails.map((x, i) => `
-      <tr>
-        <td>${i + 1}</td>
-        <td>${x.from}</td>
-        <td>${x.to}</td>
-        <td>${(x.distanceMeters / 1000).toFixed(2)} km</td>
-        <td>${formatSec(x.durationSec)}</td>
-      </tr>
-    `).join("");
-
-    return `
-      <h4>Tempo e distância por trecho</h4>
-      <table>
-        <thead><tr><th>#</th><th>De</th><th>Para</th><th>Distância</th><th>Duração</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    `;
-  }
-
-  function loadMapsScript(apiKey) {
-    return new Promise((resolve, reject) => {
-      if (window.google && window.google.maps) return resolve();
-      window.__gmapsAuthError = () => reject(new Error("Maps JS: chave inválida/restrita."));
-      window.__initMap = () => resolve();
-
-      const s = document.createElement("script");
-      s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&callback=__initMap`;
-      s.async = true;
-      s.defer = true;
-      s.onerror = () => reject(new Error("Falha ao baixar Maps JavaScript API."));
+  async function loadMapsScript(apiKey){
+    return new Promise((resolve,reject)=>{
+      if(window.google&&window.google.maps) return resolve();
+      window.__initMap=()=>resolve();
+      const s=document.createElement("script");
+      s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&callback=__initMap`;
+      s.async=true; s.defer=true; s.onerror=()=>reject(new Error("Falha Maps JS"));
       document.head.appendChild(s);
-
-      setTimeout(() => {
-        if (!(window.google && window.google.maps)) reject(new Error("Timeout ao carregar Maps JS."));
-      }, 10000);
     });
   }
 
-  function buildGoogleMapsWebUrl(originTextOrCoords, destination, orderedStops, travelMode) {
-    const params = new URLSearchParams();
-    params.set("api", "1");
-    params.set("origin", typeof originTextOrCoords === "string" ? originTextOrCoords : `${originTextOrCoords.lat},${originTextOrCoords.lng}`);
-    params.set("destination", destination);
-
-    const modeMap = {
-      DRIVE: "driving",
-      TWO_WHEELER: "driving",
-      BICYCLE: "bicycling",
-      WALK: "walking"
+  async function computeRoute(apiKey, originForApi, destination, stops, routingPreference, travelMode, optimizeWaypointOrder, departureISO){
+    const body = {
+      origin: originForApi,
+      destination: { address: destination },
+      intermediates: stops.map(s=>({address:s})),
+      travelMode,
+      routingPreference,
+      optimizeWaypointOrder,
+      languageCode:"pt-BR",
+      units:"METRIC"
     };
-    params.set("travelmode", modeMap[travelMode] || "driving");
+    if(departureISO) body.departureTime = departureISO;
 
-    if (orderedStops?.length) params.set("waypoints", orderedStops.join("|"));
+    const res = await fetch(ROUTES_URL, {
+      method:"POST",
+      headers:{
+        "Content-Type":"application/json",
+        "X-Goog-Api-Key":apiKey,
+        "X-Goog-FieldMask":"routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.optimizedIntermediateWaypointIndex,routes.legs.distanceMeters,routes.legs.duration,routes.legs.steps.startLocation.latLng,routes.legs.steps.endLocation.latLng"
+      },
+      body: JSON.stringify(body)
+    });
+
+    const text = await res.text();
+    let data={}; try{data=JSON.parse(text);}catch{data={raw:text};}
+    logDebug(`computeRoutes HTTP ${res.status}`, data);
+
+    if(!res.ok) throw new Error(data?.error?.message || `HTTP ${res.status}`);
+    const route = data.routes?.[0];
+    if(!route) throw new Error("Nenhuma rota retornada.");
+
+    const idx = route.optimizedIntermediateWaypointIndex || [];
+    const orderedStops = idx.length ? idx.map(i=>stops[i]) : stops.slice();
+
+    return { route, orderedStops };
+  }
+
+  function onOriginModeChange(){
+    const mode=document.getElementById("originMode").value;
+    document.getElementById("originAddressWrap").style.display = mode==="address"?"block":"none";
+    document.getElementById("originDeviceWrap").style.display = mode==="device"?"block":"none";
+  }
+
+  function buildGoogleMapsWebUrl(originRef, destination, orderedStops, travelMode){
+    const params = new URLSearchParams();
+    params.set("api","1");
+    params.set("origin", typeof originRef==="string" ? originRef : `${originRef.lat},${originRef.lng}`);
+    params.set("destination", destination);
+    const modeMap={DRIVE:"driving",TWO_WHEELER:"driving",BICYCLE:"bicycling",WALK:"walking"};
+    params.set("travelmode", modeMap[travelMode] || "driving");
+    if(orderedStops?.length) params.set("waypoints", orderedStops.join("|"));
     return `https://www.google.com/maps/dir/?${params.toString()}`;
   }
 
-  function buildGoogleMapsAppUrl(originTextOrCoords, destination, orderedStops, travelMode) {
-    const chain = [...orderedStops, destination];
-    const originStr = typeof originTextOrCoords === "string" ? originTextOrCoords : `${originTextOrCoords.lat},${originTextOrCoords.lng}`;
-
-    const modeMap = {
-      DRIVE: "driving",
-      TWO_WHEELER: "driving",
-      BICYCLE: "bicycling",
-      WALK: "walking"
-    };
-
-    return "comgooglemaps://?directionsmode=" + encodeURIComponent(modeMap[travelMode] || "driving") +
-      "&saddr=" + encodeURIComponent(originStr) +
-      "&daddr=" + encodeURIComponent(chain.join("+to:"));
-  }
-
-  function onOriginModeChange() {
-    const mode = document.getElementById("originMode").value;
-    document.getElementById("originAddressWrap").style.display = mode === "address" ? "block" : "none";
-    document.getElementById("originDeviceWrap").style.display = mode === "device" ? "block" : "none";
-  }
-
-  function openInGoogleMapsWeb() {
-    if (!lastDestination) return setStatus("Calcule a rota primeiro.", "err");
+  function openInGoogleMapsWeb(){
+    if(!lastDestination) return setStatus("Calcule a rota primeiro.","err");
     const originRef = lastOriginCoord || lastOrigin;
-    if (!originRef) return setStatus("Origem inválida.", "err");
-    const travelMode = document.getElementById("travelMode").value;
-    window.open(buildGoogleMapsWebUrl(originRef, lastDestination, lastOrderedStops || [], travelMode), "_blank", "noopener,noreferrer");
+    if(!originRef) return setStatus("Origem inválida.","err");
+    const travelMode=document.getElementById("travelMode").value;
+    window.open(buildGoogleMapsWebUrl(originRef,lastDestination,lastOrderedStops,travelMode), "_blank", "noopener,noreferrer");
   }
 
-  function openInGoogleMapsApp() {
-    if (!lastDestination) return setStatus("Calcule a rota primeiro.", "err");
-    const originRef = lastOriginCoord || lastOrigin;
-    if (!originRef) return setStatus("Origem inválida.", "err");
-    const travelMode = document.getElementById("travelMode").value;
+  function openInGoogleMapsApp(){ openInGoogleMapsWeb(); } // fallback simples
 
-    const appUrl = buildGoogleMapsAppUrl(originRef, lastDestination, lastOrderedStops || [], travelMode);
-    const webUrl = buildGoogleMapsWebUrl(originRef, lastDestination, lastOrderedStops || [], travelMode);
+  async function showMapFlow(){
+    debugLines=[];
+    document.getElementById("debug").textContent="";
+    document.getElementById("summary").innerHTML="";
+    document.getElementById("legDetails").innerHTML="";
+    document.getElementById("payloadPreview").textContent="";
 
-    const startTime = Date.now();
-    window.location.href = appUrl;
-    setTimeout(() => {
-      if (Date.now() - startTime < 1800) window.open(webUrl, "_blank", "noopener,noreferrer");
-    }, 1200);
-  }
+    const apiKey=document.getElementById("apiKey").value.trim();
+    const destination=document.getElementById("destination").value.trim();
+    const stops=parseStops(document.getElementById("stops").value);
+    const travelMode=document.getElementById("travelMode").value;
+    const routingPreference=document.getElementById("routingPreference").value;
+    const optimizeWaypointOrder=document.getElementById("optimizeOrder").value==="true";
+    const departureISO=getDepartureTimeISO();
 
-  async function showMapFlow() {
-    debugLines = [];
-    document.getElementById("debug").textContent = "";
-    document.getElementById("summary").innerHTML = "";
-    document.getElementById("legDetails").innerHTML = "";
-
-    const apiKey = document.getElementById("apiKey").value.trim();
-    const destination = document.getElementById("destination").value.trim();
-    const stops = parseStops(document.getElementById("stops").value);
-    const travelMode = document.getElementById("travelMode").value;
-    const minutesPerStop = Math.max(0, parseInt(document.getElementById("minutesPerStop").value || "0", 10) || 0);
-
-    if (!apiKey) throw new Error("Informe a API key.");
-    if (!destination) throw new Error("Informe destino.");
+    if(!apiKey) throw new Error("Informe a API key.");
+    if(!destination) throw new Error("Informe destino.");
 
     await ensureDeviceLocationIfNeeded();
-    const originInput = getOriginInput();
+    const originInput=getOriginInput();
 
-    const routingPreference = document.getElementById("routingPreference").value;
-    const optimizeWaypointOrder = document.getElementById("optimizeOrder").value === "true";
-    const departureISO = getDepartureTimeISO();
-
-    setStatus("1/4 Carregando Maps JS...", "warn");
+    setStatus("1/3 Carregando mapa...","warn");
     await loadMapsScript(apiKey);
 
-    setStatus("2/4 Calculando rota...", "warn");
-    const result = await computeLongRouteWithChunking(
-      apiKey, originInput, destination, stops, routingPreference, travelMode, optimizeWaypointOrder, departureISO
+    setStatus("2/3 Calculando rota...","warn");
+    const { route, orderedStops } = await computeRoute(
+      apiKey, originInput.forApi, destination, stops, routingPreference, travelMode, optimizeWaypointOrder, departureISO
     );
 
-    setStatus("3/4 Desenhando no mapa...", "warn");
-    ensureMap();
-    clearMap();
+    setStatus("3/3 Desenhando...","warn");
+    ensureMap(); clearMap();
+
+    const path = decodePolyline(route.polyline?.encodedPolyline || "");
+    const line = new google.maps.Polyline({ path, map, strokeColor:"#1a73e8", strokeOpacity:0.95, strokeWeight:5 });
+    polylines.push(line);
 
     const bounds = new google.maps.LatLngBounds();
-    for (const encoded of result.encodedPolylines) {
-      const path = decodePolyline(encoded);
-      const pl = new google.maps.Polyline({ path, map, strokeColor:"#1a73e8", strokeOpacity:0.95, strokeWeight:5 });
-      polylines.push(pl);
-      path.forEach(p => bounds.extend(p));
+    path.forEach(p=>bounds.extend(p));
+
+    const legs = route.legs || [];
+    const legDetails = [];
+    for(let i=0;i<legs.length;i++){
+      legDetails.push({
+        from: i===0 ? originInput.label : orderedStops[i-1],
+        to: i<orderedStops.length ? orderedStops[i] : destination,
+        distanceMeters: legs[i].distanceMeters || 0,
+        durationSec: durationToSec(legs[i].duration)
+      });
     }
 
-    const ps = result.pointSeries;
-    const legs = result.perLegDetails || [];
+    // marcadores aproximados pelos steps
+    if(legs.length){
+      const s0=legs[0].steps?.[0]?.startLocation?.latLng;
+      if(s0){ addMarker({lat:s0.latitude,lng:s0.longitude},"I",`Início: ${originInput.label}`,"start"); bounds.extend({lat:s0.latitude,lng:s0.longitude}); }
 
-    if (ps.length) {
-      addMarker(ps[0], "I", `Início: ${originInput.label}`, "start", "");
-      bounds.extend(ps[0]);
-
-      const stopCount = Math.max(0, ps.length - 2);
-      for (let i = 0; i < stopCount; i++) {
-        const pos = ps[i + 1];
-        const leg = legs[i];
-        const legInfoText = leg ? `${(leg.distanceMeters / 1000).toFixed(2)} km • ${formatSec(leg.durationSec)}` : "";
-        addMarker(pos, String(i + 1), `Parada ${i + 1}: ${result.orderedStops[i] || ""}`, "stop", legInfoText);
-        bounds.extend(pos);
+      for(let i=0;i<orderedStops.length;i++){
+        const e=legs[i]?.steps?.[legs[i].steps.length-1]?.endLocation?.latLng;
+        if(!e) continue;
+        const info = legDetails[i] ? `${(legDetails[i].distanceMeters/1000).toFixed(2)} km • ${formatSec(legDetails[i].durationSec)}` : "";
+        addMarker({lat:e.latitude,lng:e.longitude}, String(i+1), `Parada ${i+1}: ${orderedStops[i]}`, "stop", info);
+        bounds.extend({lat:e.latitude,lng:e.longitude});
       }
 
-      const endPos = ps[ps.length - 1];
-      const lastLeg = legs[legs.length - 1];
-      const endLegInfo = lastLeg ? `${(lastLeg.distanceMeters / 1000).toFixed(2)} km • ${formatSec(lastLeg.durationSec)}` : "";
-      addMarker(endPos, "F", `Fim: ${destination}`, "end", endLegInfo);
-      bounds.extend(endPos);
+      const le=legs[legs.length-1]?.steps?.[legs[legs.length-1].steps.length-1]?.endLocation?.latLng;
+      if(le){
+        const lastInfo = legDetails[legDetails.length-1] ? `${(legDetails[legDetails.length-1].distanceMeters/1000).toFixed(2)} km • ${formatSec(legDetails[legDetails.length-1].durationSec)}` : "";
+        addMarker({lat:le.latitude,lng:le.longitude},"F",`Fim: ${destination}`,"end",lastInfo);
+        bounds.extend({lat:le.latitude,lng:le.longitude});
+      }
     }
 
-    if (!bounds.isEmpty()) map.fitBounds(bounds);
+    if(!bounds.isEmpty()) map.fitBounds(bounds);
+
+    // tempo de parada custom
+    const payloadCustom = renderPayloadPreview(originInput, destination, orderedStops, routingPreference, travelMode);
+    const totalTransitSec = legDetails.reduce((a,b)=>a+b.durationSec,0);
+    const totalStopSec = payloadCustom.stops.reduce((a,b)=>a + (b.stopDurationMinutes*60), 0);
+    const adjustedSec = totalTransitSec + totalStopSec;
 
     lastOrigin = originInput.text;
     lastOriginCoord = originInput.coord;
     lastDestination = destination;
-    lastOrderedStops = result.orderedStops;
-
-    const modeLabel = {
-      DRIVE: "Carro",
-      TWO_WHEELER: "Moto",
-      BICYCLE: "Bicicleta",
-      WALK: "A pé"
-    }[travelMode] || travelMode;
-
-    const stopSeconds = result.orderedStops.length * minutesPerStop * 60;
-    const adjustedTotalSec = result.totalDurationSec + stopSeconds;
+    lastOrderedStops = orderedStops;
 
     document.getElementById("summary").innerHTML = `
       <p><strong>Origem usada:</strong> ${originInput.label}</p>
-      <p><strong>Tipo de condução:</strong> ${modeLabel}</p>
-      <p><strong>Preferência de trânsito:</strong> ${routingPreference}</p>
-      <p><strong>Otimização de paradas:</strong> ${optimizeWaypointOrder ? "Sim" : "Não"}</p>
-      <p><strong>Total de paradas:</strong> ${result.orderedStops.length}</p>
-      <p><strong>Minutos por parada:</strong> ${minutesPerStop} min</p>
-      <p><strong>Distância total:</strong> ${(result.totalDistance / 1000).toFixed(2)} km</p>
-      <p><strong>Tempo em trânsito:</strong> ${formatSec(result.totalDurationSec)}</p>
-      <p><strong>Tempo nas paradas:</strong> ${formatSec(stopSeconds)}</p>
-      <p><strong>Tempo total ajustado:</strong> ${formatSec(adjustedTotalSec)}</p>
-      <p><strong>Sequência:</strong> I → ${result.orderedStops.map((_, i) => i + 1).join(" → ") || "(sem paradas)"} → F</p>
-      <ol>${result.orderedStops.map(s => `<li>${s}</li>`).join("")}</ol>
+      <p><strong>Tipo de condução:</strong> ${travelMode}</p>
+      <p><strong>Paradas:</strong> ${orderedStops.length}</p>
+      <p><strong>Distância total:</strong> ${((route.distanceMeters||0)/1000).toFixed(2)} km</p>
+      <p><strong>Tempo em trânsito:</strong> ${formatSec(totalTransitSec)}</p>
+      <p><strong>Tempo de paradas (payload):</strong> ${formatSec(totalStopSec)}</p>
+      <p><strong>Tempo total ajustado:</strong> ${formatSec(adjustedSec)}</p>
     `;
 
-    if (result.skippedStops?.length) {
-      document.getElementById("summary").innerHTML += `
-        <p style="color:#b26a00"><strong>Paradas ignoradas por erro de rota:</strong></p>
-        <ol>${result.skippedStops.map(s => `<li>${s}</li>`).join("")}</ol>
-      `;
-    }
+    const rows = legDetails.map((x,i)=>`
+      <tr><td>${i+1}</td><td>${x.from}</td><td>${x.to}</td><td>${(x.distanceMeters/1000).toFixed(2)} km</td><td>${formatSec(x.durationSec)}</td></tr>
+    `).join("");
+    document.getElementById("legDetails").innerHTML = `
+      <h4>Tempo e distância por trecho</h4>
+      <table><thead><tr><th>#</th><th>De</th><th>Para</th><th>Distância</th><th>Duração</th></tr></thead><tbody>${rows}</tbody></table>
+    `;
 
-    document.getElementById("legDetails").innerHTML = renderLegTable(result.perLegDetails);
-    setStatus("4/4 OK: rota renderizada com tempo adicional de paradas.", "ok");
+    setStatus("OK: rota calculada com payload de tempos de parada.", "ok");
   }
 
   document.getElementById("originMode").addEventListener("change", onOriginModeChange);
 
   document.getElementById("btnGetLocation").addEventListener("click", async () => {
     try {
-      setStatus("Capturando localização atual...", "warn");
+      setStatus("Capturando localização...", "warn");
       await captureDeviceLocation();
-      setStatus("Localização capturada com sucesso.", "ok");
+      setStatus("Localização capturada.", "ok");
     } catch (e) {
-      setStatus(`Falha ao capturar localização: ${explainGeoError(e)}`, "err");
-      logDebug("Erro geolocalização", { message: e.message, code: e.code || null });
+      setStatus(`Falha localização: ${explainGeoError(e)}`, "err");
+      logDebug("Erro geolocalização", { message:e.message, code:e.code||null });
     }
   });
 
   document.getElementById("btnShow").addEventListener("click", async () => {
-    try {
-      await showMapFlow();
-    } catch (e) {
-      logDebug("Erro capturado", { message: e.message, stack: e.stack });
-      setStatus(e.message, "err");
-    }
+    try { await showMapFlow(); }
+    catch (e) { logDebug("Erro capturado", {message:e.message, stack:e.stack}); setStatus(e.message, "err"); }
   });
 
   document.getElementById("btnOpenGoogleMaps").addEventListener("click", openInGoogleMapsWeb);
