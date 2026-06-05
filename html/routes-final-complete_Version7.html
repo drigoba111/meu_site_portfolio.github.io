@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Rota completa (Version7 corrigido + duration experimental)</title>
+  <title>Rota completa (Version7 + vehicleStopover)</title>
   <style>
     body { font-family: Arial, sans-serif; margin:0; }
     .wrap { display:grid; grid-template-columns:480px 1fr; gap:12px; padding:12px; }
@@ -28,7 +28,7 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h3 style="margin-top:0">Rota completa (fallback duration intermediates)</h3>
+    <h3 style="margin-top:0">Rota completa (vehicleStopover)</h3>
 
     <label>API Key</label>
     <input id="apiKey" type="password" placeholder="YOUR_API_KEY" />
@@ -250,39 +250,44 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
   };
   if(departureISO) baseBody.departureTime = departureISO;
 
-  // tentativa 1: duration em intermediates
+  // Sempre enviar vehicleStopover
+  const baseIntermediates = stops.map(s => ({
+    address: s,
+    vehicleStopover: true
+  }));
+
+  // tentativa 1: vehicleStopover + duration (experimental)
   if(tryDuration){
     const bodyWithDuration = {
       ...baseBody,
-      intermediates: stops.map(s=>({
-        address:s,
-        duration: `${minutesPerStop * 60}s` // experimental
+      intermediates: baseIntermediates.map(wp => ({
+        ...wp,
+        duration: `${minutesPerStop * 60}s`
       }))
     };
 
     const r1 = await postComputeRoutes(apiKey, bodyWithDuration);
-    logDebug("Tentativa #1 (com duration em intermediates)", r1.data);
+    logDebug("Tentativa #1 (vehicleStopover + duration)", r1.data);
 
     if(r1.res.ok && r1.data?.routes?.[0]){
       logDebug("Campo duration em intermediates aceito nesta execução.", null);
       const route = r1.data.routes[0];
       const idx = route.optimizedIntermediateWaypointIndex || [];
       const orderedStops = idx.length ? idx.map(i=>stops[i]) : stops.slice();
-      return {route, orderedStops, durationAccepted:true};
+      return {route, orderedStops, durationAccepted:true, vehicleStopoverSent:true};
     }
 
-    // rejeitou: log claro + fallback
     const errMsg = r1.data?.error?.message || `HTTP ${r1.res.status}`;
-    logDebug("Campo duration em intermediates NÃO suportado/rejeitado. Fallback automático sem duration.", {error: errMsg});
+    logDebug("Campo duration em intermediates NÃO suportado/rejeitado. Fallback automático para vehicleStopover sem duration.", {error: errMsg});
   }
 
-  // tentativa 2: sem duration
+  // tentativa 2: vehicleStopover sem duration
   const bodyPlain = {
     ...baseBody,
-    intermediates: stops.map(s=>({address:s}))
+    intermediates: baseIntermediates
   };
   const r2 = await postComputeRoutes(apiKey, bodyPlain);
-  logDebug("Tentativa #2 (sem duration)", r2.data);
+  logDebug("Tentativa #2 (vehicleStopover sem duration)", r2.data);
 
   if(!r2.res.ok) throw new Error(r2.data?.error?.message||`HTTP ${r2.res.status}`);
   const route = r2.data?.routes?.[0];
@@ -290,7 +295,7 @@ async function computeRoute(apiKey, originForApi, destination, stops, routingPre
 
   const idx=route.optimizedIntermediateWaypointIndex||[];
   const orderedStops=idx.length?idx.map(i=>stops[i]):stops.slice();
-  return {route,orderedStops,durationAccepted:false};
+  return {route,orderedStops,durationAccepted:false,vehicleStopoverSent:true};
 }
 
 function buildGoogleMapsWebUrl(originRef,destination,orderedStops,travelMode){
@@ -336,7 +341,7 @@ async function showMapFlow(){
   await loadMapsScript(apiKey);
 
   setStatus("2/3 Calculando rota...","warn");
-  const {route,orderedStops,durationAccepted}=await computeRoute(
+  const {route,orderedStops,durationAccepted,vehicleStopoverSent}=await computeRoute(
     apiKey,originInput.forApi,destination,stops,routingPreference,travelMode,optimizeWaypointOrder,departureISO
   );
 
@@ -386,6 +391,7 @@ async function showMapFlow(){
   byId("summary").innerHTML=`
     <p><strong>Origem:</strong> ${originInput.label}</p>
     <p><strong>Modo:</strong> ${travelMode}</p>
+    <p><strong>vehicleStopover enviado:</strong> ${vehicleStopoverSent ? "SIM" : "NÃO"}</p>
     <p><strong>Duration em intermediates aceito:</strong> ${durationAccepted ? "SIM" : "NÃO (fallback sem duration)"}</p>
     <p><strong>Distância total:</strong> ${((route.distanceMeters||0)/1000).toFixed(2)} km</p>
     <p><strong>Tempo em trânsito:</strong> ${formatSec(totalTransit)}</p>
