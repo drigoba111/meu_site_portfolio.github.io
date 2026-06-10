@@ -267,13 +267,10 @@ function getGlobalStartTimeUTC() {
   const departureMode = getVal("departureMode");
   const manualDeparture = getVal("manualDeparture");
   if (departureMode === "manual" && manualDeparture) {
-    const [datePart, timePart] = manualDeparture.split('T');
-    const [year, month, day] = datePart.split('-');
-    const [hour, minute] = timePart.split(':');
-    const localDate = new Date(Date.UTC(year, month-1, day, hour, minute));
-    const utcDate = new Date(localDate.getTime() + 3 * 60 * 60 * 1000);
-    utcDate.setMilliseconds(0);
-    return utcDate.toISOString().split('.')[0] + 'Z';
+    const d = new Date(manualDeparture);
+    if (isNaN(d)) throw new Error("Data/hora de partida inválida");
+    d.setMilliseconds(0);
+    return d.toISOString().split('.')[0] + 'Z';
   } else if (departureMode === "soon") {
     const d = new Date(Date.now() + 5 * 60 * 1000);
     d.setMilliseconds(0);
@@ -698,19 +695,24 @@ function refreshTimeWindowsTable() {
   const minutesPerStop = parseInt(getVal("minutesPerStop", "10"));
   if (stops.length === 0) { container.innerHTML = "<div class='muted'>Nenhuma parada.</div>"; return; }
   
-  let baseDateISO = "2025-01-01";
+  let globalStart;
   try {
-    const globalStart = getGlobalStartTimeUTC();
-    baseDateISO = globalStart.split('T')[0];
-  } catch(e) { /* fallback */ }
-  
-  const startTimes = ["09:30", "10:30", "11:15", "12:00"];
-  const endTimes   = ["10:00", "11:00", "11:45", "12:30"];
-  
+    globalStart = new Date(getGlobalStartTimeUTC());
+    if (isNaN(globalStart)) throw new Error("Data inválida");
+  } catch(e) {
+    globalStart = new Date();
+  }
+
+  const defaultOffsets = [0, 60, 105, 150];
+  const defaultDuration = 30;
+  const formatUTC = date => date.toISOString().split('.')[0] + 'Z';
+  const addMinutes = (date, minutes) => new Date(date.getTime() + minutes * 60000);
+
   let html = `<div><table style="width:100%"><thead><tr><th>Ponto</th><th>Início (UTC)</th><th>Fim (UTC)</th><th>Serviço (min)</th></tr></thead><tbody id="timeWindowsTableBody">`;
   for (let i = 0; i < stops.length; i++) {
-    const start = `${baseDateISO}T${startTimes[i]}:00Z`;
-    const end   = `${baseDateISO}T${endTimes[i]}:00Z`;
+    const offset = i < defaultOffsets.length ? defaultOffsets[i] : defaultOffsets[defaultOffsets.length - 1] + (i - defaultOffsets.length + 1) * 45;
+    const start = formatUTC(addMinutes(globalStart, offset));
+    const end = formatUTC(addMinutes(globalStart, offset + defaultDuration));
     html += `<tr data-type="stop" data-idx="${i}">
       <td><strong>Parada ${i+1}:</strong> ${stops[i].substring(0,35)}</td>
       <td><input type="text" class="tw-start" value="${start}" style="width:160px;"></td>
@@ -718,15 +720,16 @@ function refreshTimeWindowsTable() {
       <td><input type="number" class="tw-duration" value="${minutesPerStop}" min="0" step="1" style="width:80px;"></td>
     </tr>`;
   }
-  const destStart = `${baseDateISO}T12:30:00Z`;
-  const destEnd   = `${baseDateISO}T13:00:00Z`;
+
+  const destStart = formatUTC(addMinutes(globalStart, 180));
+  const destEnd = formatUTC(addMinutes(globalStart, 210));
   html += `<tr data-type="destination" data-idx="dest">
     <td><strong>Destino:</strong> ${destination.substring(0,40)}</td>
       <td><input type="text" class="tw-start" value="${destStart}" style="width:160px;"></td>
       <td><input type="text" class="tw-end" value="${destEnd}" style="width:160px;"></td>
       <td><input type="number" class="tw-duration" value="5" min="0" step="1" style="width:80px;"></td>
   </tr>`;
-  html += `</tbody></table><div class="muted">⏰ As janelas usam a data da partida (${baseDateISO}).</div></div>`;
+  html += `</tbody></table><div class="muted">⏰ As janelas usam a data e hora de partida global (${formatUTC(globalStart)}).</div></div>`;
   container.innerHTML = html;
 }
 
