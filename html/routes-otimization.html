@@ -237,12 +237,11 @@ async function geocodeAddress(address, apiKey) {
   return { lat: location.lat, lng: location.lng };
 }
 
-async function getAllCoordinatesFromGeocoding(apiKey, originAddr, destinationAddr, stopsList) {
+async function getAllCoordinatesFromGeocoding(apiKey, destinationAddr, stopsList) {
   setStatus("🌍 Geocodificando endereços...", "warn");
-  const originCoord = await geocodeAddress(originAddr, apiKey);
   const destCoord = await geocodeAddress(destinationAddr, apiKey);
   const stopsCoords = await Promise.all(stopsList.map(addr => geocodeAddress(addr, apiKey)));
-  return { originCoord, stopsCoords, destCoord };
+  return { stopsCoords, destCoord };
 }
 
 // --------------------------------------------------------------
@@ -542,8 +541,8 @@ async function optimizeAndDraw() {
   debugLines = []; byId("debug").textContent = ""; byId("summary").innerHTML = ""; byId("detailedTable").innerHTML = "";
   const apiKey = byId("apiKey").value.trim();
   const projectId = byId("projectId").value.trim();
+  if (getVal("originMode") === "device") await ensureDeviceIfNeeded();
   const originInput = getOriginInput();
-  const originAddr = originInput.text || originInput.label;
   const destination = byId("destination").value.trim();
   const stops = parseLines(byId("stops").value);
   const travelMode = getVal("travelMode", "DRIVE");
@@ -552,14 +551,15 @@ async function optimizeAndDraw() {
   
   if (!apiKey) throw new Error("API Key necessária (Geocoding, Routes, Maps)");
   if (!projectId) throw new Error("Project ID obrigatório");
-  if (!originAddr || !destination) throw new Error("Origem e destino obrigatórios");
+  if ((!originInput.coord && !originInput.text) || !destination) throw new Error("Origem e destino obrigatórios");
   
   setStatus("🔄 Carregando mapa e geocodificando...", "warn");
   await loadMapsScript(apiKey);
   ensureMap();
   clearMap();
 
-  const { originCoord, stopsCoords, destCoord } = await getAllCoordinatesFromGeocoding(apiKey, originAddr, destination, stops);
+  const originCoord = originInput.coord || await geocodeAddress(originInput.text, apiKey);
+  const { stopsCoords, destCoord } = await getAllCoordinatesFromGeocoding(apiKey, destination, stops);
   logDebug("Coordenadas obtidas via Geocoding", { originCoord, stopsCoords, destCoord });
   
   setStatus("🔄 Chamando Route Optimization...", "warn");
