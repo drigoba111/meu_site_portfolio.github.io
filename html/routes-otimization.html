@@ -1,0 +1,796 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Route Optimization - com considerRoadTraffic corrigido</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; background: #eef2f5; }
+    .wrap { display: grid; grid-template-columns: 540px 1fr; gap: 16px; padding: 16px; max-width: 1600px; margin: 0 auto; }
+    .panel { background: white; border-radius: 20px; box-shadow: 0 8px 20px rgba(0,0,0,0.05); padding: 18px; border: 1px solid #e2e8f0; }
+    #map { width: 100%; height: 70vh; border-radius: 20px; background: #e9ecef; }
+    label { display: block; margin-top: 12px; font-weight: 600; font-size: 13px; color: #1e293b; }
+    input, textarea, button, select { width: 100%; padding: 10px; margin-top: 5px; border-radius: 14px; border: 1px solid #cbd5e1; font-size: 14px; background: #fff; }
+    button { background: #1a73e8; color: white; font-weight: 600; border: none; cursor: pointer; }
+    button:hover { background: #0f5bc0; }
+    .row { display: flex; gap: 12px; margin-top: 6px; }
+    .row > div { flex: 1; }
+    .actions { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; margin: 18px 0 12px; }
+    .ok { color: #0b8043; background: #e6f4ea; padding: 10px; border-radius: 14px; font-weight: 500; }
+    .err { color: #c5221f; background: #fce8e6; padding: 10px; border-radius: 14px; }
+    .warn { color: #b26a00; background: #fef7e0; padding: 10px; border-radius: 14px; }
+    pre { background: #0f172a; color: #eef; padding: 12px; border-radius: 16px; overflow: auto; max-height: 220px; font-size: 12px; }
+    .muted { color: #5a6e8a; font-size: 12px; margin-top: 5px; }
+    .section-title { font-weight: 700; font-size: 15px; margin: 18px 0 10px; border-left: 4px solid #1a73e8; padding-left: 12px; background: #f8fafc; }
+    table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 12px; }
+    th, td { border: 1px solid #e2e8f0; padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f1f5f9; font-weight: 600; }
+    .wait-positive { background: #fef3c7; color: #b45309; font-weight: bold; }
+    .badge { background: #eef2ff; border-radius: 30px; padding: 2px 8px; font-size: 11px; display: inline-block; }
+    .checkbox-label { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-weight: normal; cursor: pointer; }
+    .checkbox-label input { width: auto; margin-top: 0; }
+    .modal {
+      display: none;
+      position: fixed;
+      z-index: 1000;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.7);
+      overflow: auto;
+    }
+    .modal-content {
+      background-color: #fefefe;
+      margin: 2% auto;
+      padding: 20px;
+      border-radius: 20px;
+      width: 95%;
+      max-width: 1400px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      position: relative;
+    }
+    .close-modal {
+      position: absolute;
+      right: 20px;
+      top: 15px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #aaa;
+    }
+    .close-modal:hover { color: black; }
+    .modal-title { font-size: 20px; font-weight: 600; margin-bottom: 16px; padding-right: 30px; }
+    .modal-table-container { overflow-x: auto; max-height: 80vh; }
+    .modal table { font-size: 13px; min-width: 1000px; }
+    .btn-modal { background: #2c3e66; margin-top: 10px; width: auto; padding: 8px 16px; display: inline-block; }
+  </style>
+</head>
+<body>
+<div class="wrap">
+  <div class="panel">
+    <h3>🚛 Otimização com Geocoding + considerRoadTraffic</h3>
+
+    <label>🔑 API Key (Google Maps + Geocoding + Routes)</label>
+    <input id="apiKey" type="password" placeholder="AIza... obrigatória" />
+    <div class="muted">APIs necessárias: Geocoding, Routes, Maps JavaScript.</div>
+
+    <label>🆔 Project ID (Google Cloud)</label>
+    <input id="projectId" type="text" placeholder="ex: my-project-123456" />
+
+    <label>🔐 OAuth2 Access Token</label>
+    <input id="oauthToken" type="password" placeholder="Token com escopo cloud-platform" />
+    <div class="muted">👉 Obtenha em <a href="https://developers.google.com/oauthplayground/" target="_blank">OAuth Playground</a> (escopo: cloud-platform)</div>
+
+    <label>📍 Origem</label>
+    <select id="originMode">
+      <option value="address" selected>Endereço digitado</option>
+      <option value="device">Minha localização atual</option>
+    </select>
+    <div id="originAddressWrap"><input id="origin" value="Av. Paulista, 1000, São Paulo - SP" /></div>
+    <div id="originDeviceWrap" style="display:none;"><button id="btnGetLocation" type="button">📍 Capturar localização</button><div id="originDeviceInfo" class="muted">Nenhuma</div></div>
+
+    <label>🏁 Destino</label>
+    <input id="destination" value="Aeroporto de Congonhas, São Paulo - SP" />
+
+    <label>⛽ Paradas (uma por linha)</label>
+    <textarea id="stops" rows="4">Rua Funchal, 500, São Paulo - SP
+Shopping Eldorado, São Paulo - SP
+Museu da Imagem e do Som, São Paulo - SP
+Parque Ibirapuera, São Paulo - SP</textarea>
+
+    <div class="row">
+      <div><label>⏱️ Minutos por parada (global)</label>
+        <input id="minutesPerStop" type="number" value="10" step="1" />
+        <div class="muted">Tempo de serviço em cada parada</div>
+      </div>
+      <div><label>📤 Enviar duration (Routes API)</label><select id="tryIntermediateDuration"><option value="true" selected>Sim</option><option value="false">Não</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>🚗 vehicleStopover</label><select id="sendVehicleStopover"><option value="auto" selected>Auto (DRIVE/MOTO)</option><option value="true">Sempre</option><option value="false">Nunca</option></select></div>
+      <div><label>🧭 Tipo de condução</label><select id="travelMode"><option value="DRIVE" selected>Carro</option><option value="TWO_WHEELER">Moto</option><option value="BICYCLE">Bicicleta</option><option value="WALK">A pé</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>🚦 Preferência</label><select id="routingPreference">
+          <option value="TRAFFIC_UNAWARE">Sem trânsito</option>
+          <option value="TRAFFIC_AWARE" selected>Com trânsito</option>
+          <option value="TRAFFIC_AWARE_OPTIMAL">Ótimo (com trânsito)</option>
+        </select>
+      </div>
+      <div><label>⚡ Otimizar ordem (Routes API)</label><select id="optimizeOrder"><option value="true" selected>Sim</option><option value="false">Não</option></select></div>
+    </div>
+    <div class="row">
+      <div><label>⏰ Partida (horário local do Brasil)</label><select id="departureMode"><option value="soon" selected>Sair em +5 min</option><option value="manual">Data/hora</option><option value="none">Não enviar</option></select></div>
+      <div><input id="manualDeparture" type="datetime-local" /></div>
+    </div>
+
+    <label class="checkbox-label">
+      <input type="checkbox" id="useTimeWindows" checked> Usar janelas de tempo (restritivo)
+    </label>
+    <div class="muted">Quando desligado, apenas o tempo de parada será considerado.</div>
+
+    <div id="timeWindowsSection" class="section-title">📅 Janelas de tempo (dinâmicas)</div>
+    <div id="timeWindowsPanel" style="background:#f9fbfd; border-radius: 16px; padding: 12px; margin: 8px 0;">
+      <button id="refreshTimeWindowsBtn" type="button" style="background:#2c3e66; margin-bottom: 10px;">🔄 Gerar janelas com data da partida</button>
+      <div id="timeWindowsTableContainer" style="max-height: 280px; overflow-y: auto;"></div>
+      <div class="muted">⏰ As janelas usam a data da partida para evitar erro "outside global time window".</div>
+    </div>
+
+    <div class="actions">
+      <button id="btnShow">🗺️ Routes API (mapa)</button>
+      <button id="btnOptimizeRoute" style="background:#0b5e2e;">✨ Otimizar (Geocoding)</button>
+      <button id="btnOpenGoogleMaps">🔗 Abrir Google Maps</button>
+    </div>
+
+    <div id="status"></div>
+    <div id="summary"></div>
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 16px;">
+      <div class="section-title" style="margin-bottom: 0;">📋 Cronograma detalhado (horário local)</div>
+      <button id="openModalBtn" class="btn-modal" style="display: none;">🔍 Expandir tela cheia</button>
+    </div>
+    <div id="detailedTable"></div>
+
+    <details><summary>📦 Payload enviado</summary><pre id="payloadPreview"></pre></details>
+    <details><summary>🐞 Logs / Debug</summary><pre id="debug"></pre></details>
+  </div>
+  <div class="panel"><div id="map"></div></div>
+</div>
+
+<div id="cronogramaModal" class="modal">
+  <div class="modal-content">
+    <span class="close-modal">&times;</span>
+    <div class="modal-title">📋 Cronograma detalhado da rota otimizada (horário local)</div>
+    <div class="modal-table-container" id="modalTableContainer"></div>
+  </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIGURAÇÕES GLOBAIS
+// ============================================================
+const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
+const GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
+let map, markers = [], polylines = [], deviceLocation = null, debugLines = [];
+let lastOrigin = null, lastOriginCoord = null, lastDestination = null, lastOrderedStops = [];
+
+function byId(id) { const el = document.getElementById(id); if (!el) throw new Error(`Elemento #${id} não encontrado`); return el; }
+const getVal = (id, fallback = "") => document.getElementById(id)?.value ?? fallback;
+const logDebug = (m, o) => { const l = o ? `${m}\n${JSON.stringify(o, null, 2)}` : m; debugLines.push(l); byId("debug").textContent = debugLines.join("\n\n---\n\n"); };
+const setStatus = (m, t = "ok") => { const e = byId("status"); e.className = t; e.textContent = m; };
+const parseLines = t => t.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+const durationToSec = d => { const n = parseInt(String(d || "").replace("s", ""), 10); return isNaN(n) ? 0 : n; };
+const formatSec = sec => `${Math.floor(sec / 3600)}h ${Math.floor((sec % 3600) / 60)}min ${sec % 60}s`;
+
+function formatLocalDateTime(isoString) {
+  if (!isoString) return "-";
+  const utcDate = new Date(isoString);
+  const localDate = new Date(utcDate.getTime() - 3 * 60 * 60 * 1000);
+  return localDate.toLocaleString('pt-BR', { timeZone: 'UTC' });
+}
+
+const decodePolyline = encoded => {
+  let i = 0, lat = 0, lng = 0, c = [];
+  while (i < encoded.length) {
+    let b, s = 0, r = 0;
+    do { b = encoded.charCodeAt(i++) - 63; r |= (b & 0x1f) << s; s += 5; } while (b >= 0x20);
+    lat += (r & 1) ? ~(r >> 1) : (r >> 1);
+    s = 0; r = 0;
+    do { b = encoded.charCodeAt(i++) - 63; r |= (b & 0x1f) << s; s += 5; } while (b >= 0x20);
+    lng += (r & 1) ? ~(r >> 1) : (r >> 1);
+    c.push({ lat: lat / 1e5, lng: lng / 1e5 });
+  }
+  return c;
+};
+
+// --------------------------------------------------------------
+// MAPA
+// --------------------------------------------------------------
+async function loadMapsScript(apiKey) {
+  return new Promise((resolve, reject) => {
+    if (window.google && window.google.maps) return resolve();
+    window.__initMap = resolve;
+    const s = document.createElement("script");
+    s.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(apiKey)}&v=weekly&callback=__initMap`;
+    s.async = true; s.defer = true; s.onerror = () => reject(new Error("Falha Maps JS"));
+    document.head.appendChild(s);
+  });
+}
+function ensureMap() { if (!window.google || !google.maps) throw new Error("Maps JS não carregado"); if (!map) map = new google.maps.Map(byId("map"), { center: { lat: -23.5505, lng: -46.6333 }, zoom: 11 }); }
+function clearMap() { markers.forEach(m => m.setMap(null)); markers = []; polylines.forEach(p => p.setMap(null)); polylines = []; }
+function addMarker(position, label, title) { const m = new google.maps.Marker({ position, map, title, label: { text: label, color: "#fff" }, icon: { path: google.maps.SymbolPath.CIRCLE, fillColor: "#1a73e8", fillOpacity: 1, strokeColor: "#fff", strokeWeight: 2, scale: 11 } }); markers.push(m); }
+function drawPolyline(encoded, color = "#1a73e8") { const path = decodePolyline(encoded); const pl = new google.maps.Polyline({ path, map, strokeColor: color, strokeOpacity: 0.95, strokeWeight: 5 }); polylines.push(pl); return path; }
+
+// --------------------------------------------------------------
+// GEOCODING API
+// --------------------------------------------------------------
+async function geocodeAddress(address, apiKey) {
+  if (!address) throw new Error("Endereço vazio");
+  const url = `${GEOCODE_URL}?address=${encodeURIComponent(address)}&key=${apiKey}`;
+  const response = await fetch(url);
+  const data = await response.json();
+  if (data.status !== "OK" || !data.results.length) {
+    throw new Error(`Geocodificação falhou para "${address}": ${data.status}`);
+  }
+  const location = data.results[0].geometry.location;
+  return { lat: location.lat, lng: location.lng };
+}
+
+async function getAllCoordinatesFromGeocoding(apiKey, originAddr, destinationAddr, stopsList) {
+  setStatus("🌍 Geocodificando endereços...", "warn");
+  const originCoord = await geocodeAddress(originAddr, apiKey);
+  const destCoord = await geocodeAddress(destinationAddr, apiKey);
+  const stopsCoords = await Promise.all(stopsList.map(addr => geocodeAddress(addr, apiKey)));
+  return { originCoord, stopsCoords, destCoord };
+}
+
+// --------------------------------------------------------------
+// ORIGEM
+// --------------------------------------------------------------
+async function captureDeviceLocation() { if (!navigator.geolocation) throw new Error("Geolocalização não suportada."); const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 15000 })); deviceLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }; byId("originDeviceInfo").textContent = `Localização: ${deviceLocation.lat.toFixed(6)}, ${deviceLocation.lng.toFixed(6)}`; }
+async function ensureDeviceIfNeeded() { if (getVal("originMode") === "device" && !deviceLocation) await captureDeviceLocation(); }
+function getOriginInput() {
+  if (getVal("originMode") === "device") { if (!deviceLocation) throw new Error("Sem localização"); return { label: `Minha localização`, coord: { ...deviceLocation }, text: null }; }
+  const origin = byId("origin").value.trim(); if (!origin) throw new Error("Informe origem"); return { label: origin, coord: null, text: origin };
+}
+function getDepartureISOForRoutes() {
+  const mode = getVal("departureMode");
+  const manual = getVal("manualDeparture", "");
+  if (mode === "none") return null;
+  if (mode === "soon") return new Date(Date.now() + 5 * 60 * 1000).toISOString();
+  if (!manual) return null;
+  const d = new Date(manual);
+  if (isNaN(d)) return null;
+  return d.toISOString();
+}
+function getGlobalStartTimeUTC() {
+  const departureMode = getVal("departureMode");
+  const manualDeparture = getVal("manualDeparture");
+  if (departureMode === "manual" && manualDeparture) {
+    const [datePart, timePart] = manualDeparture.split('T');
+    const [year, month, day] = datePart.split('-');
+    const [hour, minute] = timePart.split(':');
+    const localDate = new Date(Date.UTC(year, month-1, day, hour, minute));
+    const utcDate = new Date(localDate.getTime() + 3 * 60 * 60 * 1000);
+    utcDate.setMilliseconds(0);
+    return utcDate.toISOString().split('.')[0] + 'Z';
+  } else if (departureMode === "soon") {
+    const d = new Date(Date.now() + 5 * 60 * 1000);
+    d.setMilliseconds(0);
+    return d.toISOString().split('.')[0] + 'Z';
+  } else {
+    const d = new Date();
+    d.setMilliseconds(0);
+    return d.toISOString().split('.')[0] + 'Z';
+  }
+}
+
+// --------------------------------------------------------------
+// ROUTES API (para o botão "Quero ver no mapa")
+// --------------------------------------------------------------
+async function postComputeRoutes(apiKey, body, extraFieldMask = "") {
+  const baseMask = "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.optimizedIntermediateWaypointIndex,routes.legs.distanceMeters,routes.legs.duration,routes.legs.steps.startLocation.latLng,routes.legs.steps.endLocation.latLng";
+  const mask = extraFieldMask ? `${baseMask},${extraFieldMask}` : baseMask;
+  const res = await fetch(ROUTES_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", "X-Goog-Api-Key": apiKey, "X-Goog-FieldMask": mask },
+    body: JSON.stringify(body)
+  });
+  const txt = await res.text(); let data = {}; try { data = JSON.parse(txt); } catch { data = { raw: txt }; } return { res, data };
+}
+
+// --------------------------------------------------------------
+// ROUTE OPTIMIZATION (com considerRoadTraffic e janelas dinâmicas)
+// --------------------------------------------------------------
+function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, baseDateISO) {
+  const rows = document.querySelectorAll('#timeWindowsTableBody tr');
+  const twMap = new Map();
+  rows.forEach(row => {
+    const idx = row.getAttribute('data-idx');
+    const type = row.getAttribute('data-type');
+    let start = row.querySelector('.tw-start')?.value;
+    let end = row.querySelector('.tw-end')?.value;
+    let durationMin = parseInt(row.querySelector('.tw-duration')?.value) || 0;
+    if (durationMin === 0) durationMin = minutesPerStop;
+    if (start && end && type) {
+      if (start.includes('2025-01-01')) start = start.replace('2025-01-01', baseDateISO);
+      if (end.includes('2025-01-01')) end = end.replace('2025-01-01', baseDateISO);
+      twMap.set(`${type}_${idx}`, { start, end, durationSec: durationMin * 60 });
+    }
+  });
+  const visits = [];
+  for (let i = 0; i < stopsList.length; i++) {
+    const key = `stop_${i}`;
+    const tw = twMap.get(key);
+    if (tw && tw.start && tw.end) {
+      visits.push({ address: stopsList[i], duration: `${tw.durationSec}s`, timeWindows: [{ startTime: tw.start, endTime: tw.end }] });
+    } else {
+      visits.push({ address: stopsList[i], duration: `${minutesPerStop * 60}s` });
+    }
+  }
+  const destKey = "destination";
+  const destTw = twMap.get(destKey);
+  const destTimeWindows = destTw && destTw.start && destTw.end ? [{ startTime: destTw.start, endTime: destTw.end }] : undefined;
+  const destDurationSec = destTw?.durationSec || 0;
+  return { visits, destTimeWindows, destDurationSec };
+}
+
+async function callRouteOptimizationWithCoords(projectId, originCoord, stopsCoords, destCoord, stopsList, travelMode, minutesPerStop, useTimeWindows) {
+  const token = byId("oauthToken").value.trim();
+  if (!token) throw new Error("Access Token OAuth2 obrigatório.");
+  if (!projectId) throw new Error("Project ID obrigatório.");
+
+  const globalStartTime = getGlobalStartTimeUTC();
+  const baseDate = globalStartTime.split('T')[0];
+
+  let visits, destTimeWindows, destDurationSec;
+  if (useTimeWindows) {
+    const twData = buildTimeWindowsFromUI(stopsList, byId("destination").value.trim(), minutesPerStop, baseDate);
+    visits = twData.visits;
+    destTimeWindows = twData.destTimeWindows;
+    destDurationSec = twData.destDurationSec;
+  } else {
+    visits = stopsList.map((addr, i) => ({
+      address: addr,
+      duration: `${minutesPerStop * 60}s`
+    }));
+    destTimeWindows = undefined;
+    destDurationSec = 0;
+  }
+
+  const travelModeMap = { DRIVE: "DRIVING", TWO_WHEELER: "DRIVING", BICYCLE: "CYCLING", WALK: "WALKING" };
+  const apiTravelMode = travelModeMap[travelMode] || "DRIVING";
+
+  const shipments = [];
+  for (let i = 0; i < visits.length; i++) {
+    const v = visits[i];
+    const coords = stopsCoords[i];
+    const shipmentObj = {
+      pickups: [{
+        arrivalWaypoint: { location: { latLng: { latitude: coords.lat, longitude: coords.lng } } },
+        duration: v.duration
+      }]
+    };
+    if (v.timeWindows) shipmentObj.pickups[0].timeWindows = v.timeWindows;
+    shipments.push(shipmentObj);
+  }
+
+  const vehicle = {
+    startWaypoint: { location: { latLng: { latitude: originCoord.lat, longitude: originCoord.lng } } },
+    endWaypoint: { location: { latLng: { latitude: destCoord.lat, longitude: destCoord.lng } } },
+    travelMode: apiTravelMode,
+    costPerHour: 1.0,
+    costPerTraveledHour: 1.0,
+    costPerKilometer: 0.0001
+  };
+
+  if (destTimeWindows && destTimeWindows.length) {
+    vehicle.endTimeWindows = destTimeWindows;
+    if (destDurationSec > 0) {
+      shipments.push({
+        pickups: [],
+        deliveries: [{
+          arrivalWaypoint: { location: { latLng: { latitude: destCoord.lat, longitude: destCoord.lng } } },
+          duration: `${destDurationSec}s`,
+          timeWindows: destTimeWindows
+        }]
+      });
+    }
+  }
+
+  const endDate = new Date(globalStartTime);
+  endDate.setTime(endDate.getTime() + 48 * 60 * 60 * 1000);
+  endDate.setMilliseconds(0);
+  const globalEndTime = endDate.toISOString().split('.')[0] + 'Z';
+
+  const routingPref = getVal("routingPreference", "TRAFFIC_AWARE");
+  const considerRoadTraffic = (routingPref !== "TRAFFIC_UNAWARE");
+
+  // PAYLOAD CORRIGIDO: inclui considerRoadTraffic
+  const payload = {
+    model: {
+      vehicles: [vehicle],
+      shipments: shipments,
+      globalStartTime: globalStartTime,
+      globalEndTime: globalEndTime
+    },
+    considerRoadTraffic: considerRoadTraffic,
+    populatePolylines: true,
+    populateTransitionPolylines: true,
+    maxValidationErrors: 10,
+    timeout: "30s"
+  };
+
+  const url = `https://routeoptimization.googleapis.com/v1/projects/${projectId}:optimizeTours`;
+  logDebug("Enviando requisição para:", url);
+  byId("payloadPreview").textContent = JSON.stringify(payload, null, 2);
+
+  const response = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify(payload)
+  });
+  if (!response.ok) {
+    let errorMsg = `HTTP ${response.status}`;
+    try { const errJson = await response.json(); errorMsg = errJson.error?.message || JSON.stringify(errJson); } catch (e) { errorMsg = await response.text(); }
+    throw new Error(`Route Optimization falhou: ${errorMsg}`);
+  }
+  const data = await response.json();
+  logDebug("Resposta Route Optimization (sucesso)", data);
+  return data;
+}
+
+function extractPolyline(data) {
+  if (!data.routes || data.routes.length === 0) throw new Error("Nenhuma rota retornada");
+  const route = data.routes[0];
+  if (route.routePolyline && route.routePolyline.points) return route.routePolyline.points;
+  if (route.transitions && route.transitions.length) {
+    let combined = "";
+    for (const t of route.transitions) if (t.routePolyline && t.routePolyline.points) combined += t.routePolyline.points;
+    if (combined) return combined;
+  }
+  throw new Error("Polyline não encontrada na resposta");
+}
+
+function extractOptimizedOrder(routeData, originalStops) {
+  const visits = routeData.visits || [];
+  const ordered = [];
+  const indexToAddress = {};
+  for (let i = 0; i < originalStops.length; i++) indexToAddress[i] = originalStops[i];
+  for (const visit of visits) {
+    if (visit.shipmentIndex !== undefined && indexToAddress[visit.shipmentIndex]) {
+      ordered.push(indexToAddress[visit.shipmentIndex]);
+    }
+  }
+  return ordered;
+}
+
+// --------------------------------------------------------------
+// TABELA DETALHADA
+// --------------------------------------------------------------
+function buildDetailedTable(routeData, stopsList, originLabel, destinationLabel, minutesPerStop) {
+  const transitions = routeData.transitions || [];
+  const visits = routeData.visits || [];
+  const serviceSeconds = minutesPerStop * 60;
+  const indexToAddress = {};
+  for (let i = 0; i < stopsList.length; i++) indexToAddress[i] = stopsList[i];
+  
+  let html = `<div style="overflow-x: auto;"><table style="min-width: 1000px;">
+    <thead>
+      <tr><th>#</th><th>Trecho</th><th>Distância</th><th>Duração viagem</th><th>Espera (wait)</th><th>Saída (local)</th><th>Chegada (local)</th><th>Serviço (min)</th><th>Saída da parada (local)</th><th>Observação</th></tr>
+    </thead><tbody>`;
+
+  let previousLocation = originLabel;
+  for (let i = 0; i < transitions.length; i++) {
+    const trans = transitions[i];
+    const travelDist = (trans.travelDistanceMeters / 1000).toFixed(2) + " km";
+    const travelDur = formatSec(durationToSec(trans.travelDuration));
+    const waitDurSec = durationToSec(trans.waitDuration);
+    const waitDurStr = waitDurSec > 0 ? formatSec(waitDurSec) : "0";
+    const waitClass = waitDurSec > 0 ? "wait-positive" : "";
+    
+    const startTimeUTC = trans.startTime;
+    const arrivalTimeUTC = new Date(new Date(startTimeUTC).getTime() + durationToSec(trans.travelDuration)*1000).toISOString();
+    const startLocal = formatLocalDateTime(startTimeUTC);
+    const arrivalLocal = formatLocalDateTime(arrivalTimeUTC);
+    
+    let serviceEndTimeLocal = arrivalLocal;
+    let observation = "";
+    let nextLocation = destinationLabel;
+    if (i < visits.length) {
+      const visit = visits[i];
+      const shipmentIdx = visit.shipmentIndex;
+      if (shipmentIdx !== undefined && indexToAddress[shipmentIdx]) {
+        nextLocation = indexToAddress[shipmentIdx];
+      } else {
+        nextLocation = stopsList[i] || `Parada ${i+1}`;
+      }
+      const serviceEndUTC = new Date(new Date(arrivalTimeUTC).getTime() + serviceSeconds * 1000).toISOString();
+      serviceEndTimeLocal = formatLocalDateTime(serviceEndUTC);
+      if (waitDurSec > 0) {
+        observation = `⏱️ Chegou cedo, esperou ${formatSec(waitDurSec)}. Depois, serviço de ${minutesPerStop} min.`;
+      } else {
+        observation = `✅ Serviço de ${minutesPerStop} min realizado.`;
+      }
+    } else {
+      observation = "🏁 Destino final (sem serviço)";
+    }
+    
+    html += `<tr>
+      <td>${i+1}</td>
+      <td>${previousLocation} → ${nextLocation}</td>
+      <td>${travelDist}</td>
+      <td>${travelDur}</td>
+      <td class="${waitClass}">${waitDurStr}</td>
+      <td>${startLocal}</td>
+      <td>${arrivalLocal}</td>
+      <td>${minutesPerStop}</td>
+      <td>${serviceEndTimeLocal}</td>
+      <td>${observation}</td>
+    </tr>`;
+    previousLocation = nextLocation;
+  }
+  html += `</tbody></table></div>`;
+  return html;
+}
+
+// --------------------------------------------------------------
+// OTIMIZAÇÃO PRINCIPAL
+// --------------------------------------------------------------
+async function optimizeAndDraw() {
+  debugLines = []; byId("debug").textContent = ""; byId("summary").innerHTML = ""; byId("detailedTable").innerHTML = "";
+  const apiKey = byId("apiKey").value.trim();
+  const projectId = byId("projectId").value.trim();
+  const originInput = getOriginInput();
+  const originAddr = originInput.text || originInput.label;
+  const destination = byId("destination").value.trim();
+  const stops = parseLines(byId("stops").value);
+  const travelMode = getVal("travelMode", "DRIVE");
+  const minutesPerStop = parseInt(getVal("minutesPerStop", "10"));
+  const useTimeWindows = byId("useTimeWindows").checked;
+  
+  if (!apiKey) throw new Error("API Key necessária (Geocoding, Routes, Maps)");
+  if (!projectId) throw new Error("Project ID obrigatório");
+  if (!originAddr || !destination) throw new Error("Origem e destino obrigatórios");
+  
+  setStatus("🔄 Carregando mapa e geocodificando...", "warn");
+  await loadMapsScript(apiKey);
+  ensureMap();
+  clearMap();
+
+  const { originCoord, stopsCoords, destCoord } = await getAllCoordinatesFromGeocoding(apiKey, originAddr, destination, stops);
+  logDebug("Coordenadas obtidas via Geocoding", { originCoord, stopsCoords, destCoord });
+  
+  setStatus("🔄 Chamando Route Optimization...", "warn");
+  const optResult = await callRouteOptimizationWithCoords(projectId, originCoord, stopsCoords, destCoord, stops, travelMode, minutesPerStop, useTimeWindows);
+  
+  const polyline = extractPolyline(optResult);
+  const pathPoints = drawPolyline(polyline, "#2e7d32");
+  const bounds = new google.maps.LatLngBounds();
+  pathPoints.forEach(p => bounds.extend(p));
+  
+  addMarker(new google.maps.LatLng(originCoord.lat, originCoord.lng), "I", "Origem");
+  bounds.extend(new google.maps.LatLng(originCoord.lat, originCoord.lng));
+  for (let i = 0; i < stopsCoords.length; i++) {
+    addMarker(new google.maps.LatLng(stopsCoords[i].lat, stopsCoords[i].lng), `${i+1}`, stops[i]);
+    bounds.extend(new google.maps.LatLng(stopsCoords[i].lat, stopsCoords[i].lng));
+  }
+  addMarker(new google.maps.LatLng(destCoord.lat, destCoord.lng), "F", "Destino");
+  bounds.extend(new google.maps.LatLng(destCoord.lat, destCoord.lng));
+  if (!bounds.isEmpty()) map.fitBounds(bounds);
+  
+  const routeData = optResult.routes[0];
+  const totalDist = (routeData.metrics?.travelDistanceMeters / 1000).toFixed(2);
+  const totalTime = formatSec(durationToSec(routeData.metrics?.totalDuration));
+  const waitTotal = formatSec(durationToSec(routeData.metrics?.waitDuration));
+  
+  // Atualiza variáveis para Google Maps
+  lastOrigin = originAddr;
+  lastOriginCoord = originCoord;
+  lastDestination = destination;
+  const orderedStops = extractOptimizedOrder(routeData, stops);
+  lastOrderedStops = orderedStops.length ? orderedStops : stops.slice();
+  
+  byId("summary").innerHTML = `
+    <p><strong>✅ Rota otimizada (Geocoding + considerRoadTraffic)</strong> (Project ID: ${projectId})</p>
+    <p><strong>Origem:</strong> ${originAddr}<br><strong>Destino:</strong> ${destination}</p>
+    <p><strong>Distância total:</strong> ${totalDist} km &nbsp;|&nbsp; <strong>Tempo total:</strong> ${totalTime}</p>
+    <p><strong>Tempo de espera acumulado:</strong> ${waitTotal} ${waitTotal !== "0" ? "(⏱️ houve espera)" : ""}</p>
+    <p><strong>Janelas de tempo:</strong> ${useTimeWindows ? "ATIVAS" : "DESATIVADAS (apenas tempo de serviço)"}</p>
+    <p><span class="badge">⏱️ Minutos por parada: ${minutesPerStop}</span></p>
+  `;
+  
+  const detailedHtml = buildDetailedTable(routeData, stops, originAddr, destination, minutesPerStop);
+  byId("detailedTable").innerHTML = detailedHtml;
+  byId("openModalBtn").style.display = "inline-block";
+  byId("modalTableContainer").innerHTML = detailedHtml;
+  
+  setStatus("Otimização concluída! (com considerRoadTraffic)", "ok");
+}
+
+// --------------------------------------------------------------
+// ROUTES API ORIGINAL (showMapFlow) - também atualiza variáveis
+// --------------------------------------------------------------
+async function showMapFlow() {
+  debugLines = []; byId("debug").textContent = ""; byId("summary").innerHTML = ""; byId("detailedTable").innerHTML = "";
+  const apiKey = byId("apiKey").value.trim();
+  const destination = byId("destination").value.trim();
+  const stops = parseLines(byId("stops").value);
+  const travelMode = getVal("travelMode", "DRIVE");
+  const routingPreference = getVal("routingPreference", "TRAFFIC_AWARE");
+  const optimizeWaypointOrder = getVal("optimizeOrder", "true") === "true";
+  const departureISO = getDepartureISOForRoutes();
+  if (!apiKey) throw new Error("API Key obrigatória");
+  if (!destination) throw new Error("Destino inválido");
+  await ensureDeviceIfNeeded();
+  const originInput = getOriginInput();
+  setStatus("📡 Carregando mapa...", "warn");
+  await loadMapsScript(apiKey);
+  setStatus("🧭 Calculando rota (Routes API)...", "warn");
+  
+  const tryDuration = getVal("tryIntermediateDuration", "true") === "true";
+  const minutesPerStop = Math.max(0, parseInt(getVal("minutesPerStop", "0")) || 0);
+  const isMotorized = (travelMode === "DRIVE" || travelMode === "TWO_WHEELER");
+  const sendMode = getVal("sendVehicleStopover", "auto");
+  const useVehicleStopover = sendMode === "true" ? true : (sendMode === "false" ? false : isMotorized);
+  const baseBody = { origin: originInput.forApi, destination: { address: destination }, travelMode, optimizeWaypointOrder, languageCode: "pt-BR", units: "METRIC" };
+  if (isMotorized) baseBody.routingPreference = routingPreference;
+  if (departureISO) baseBody.departureTime = departureISO;
+  const baseIntermediates = stops.map(s => ({ address: s, ...(useVehicleStopover ? { vehicleStopover: true } : {}) }));
+  let routeData;
+  if (tryDuration) {
+    const bodyDur = { ...baseBody, intermediates: baseIntermediates.map(wp => ({ ...wp, duration: `${minutesPerStop * 60}s` })) };
+    const r1 = await postComputeRoutes(apiKey, bodyDur);
+    if (r1.res.ok && r1.data?.routes?.[0]) routeData = r1.data.routes[0];
+    else logDebug("duration rejeitado, fallback");
+  }
+  if (!routeData) {
+    const bodyPlain = { ...baseBody, intermediates: baseIntermediates };
+    const r2 = await postComputeRoutes(apiKey, bodyPlain);
+    if (!r2.res.ok) throw new Error(r2.data?.error?.message);
+    routeData = r2.data.routes[0];
+  }
+  setStatus("🎨 Desenhando rota...", "warn");
+  ensureMap(); clearMap();
+  const polyline = routeData.polyline?.encodedPolyline;
+  if (!polyline) throw new Error("Nenhuma polyline na resposta");
+  drawPolyline(polyline, "#1a73e8");
+  const bounds = new google.maps.LatLngBounds();
+  const legs = routeData.legs || [];
+  if (legs.length) {
+    const originLoc = legs[0]?.steps?.[0]?.startLocation?.latLng;
+    if (originLoc) { 
+      addMarker({ lat: originLoc.latitude, lng: originLoc.longitude }, "I", "Início"); 
+      bounds.extend({ lat: originLoc.latitude, lng: originLoc.longitude });
+      lastOriginCoord = { lat: originLoc.latitude, lng: originLoc.longitude };
+    }
+    const idx = routeData.optimizedIntermediateWaypointIndex || [];
+    const orderedStops = idx.length ? idx.map(i => stops[i]) : stops.slice();
+    lastOrderedStops = orderedStops;
+    for (let i = 0; i < orderedStops.length; i++) {
+      const end = legs[i]?.steps?.[legs[i].steps.length-1]?.endLocation?.latLng;
+      if (end) { 
+        addMarker({ lat: end.latitude, lng: end.longitude }, `${i+1}`, orderedStops[i]); 
+        bounds.extend({ lat: end.latitude, lng: end.longitude });
+      }
+    }
+    const destLoc = legs[legs.length-1]?.steps?.[legs[legs.length-1].steps.length-1]?.endLocation?.latLng;
+    if (destLoc) { 
+      addMarker({ lat: destLoc.latitude, lng: destLoc.longitude }, "F", "Destino"); 
+      bounds.extend({ lat: destLoc.latitude, lng: destLoc.longitude });
+    }
+  }
+  if (!bounds.isEmpty()) map.fitBounds(bounds);
+  lastOrigin = originInput.label;
+  lastDestination = destination;
+  setStatus("✅ Rota renderizada (Routes API)", "ok");
+  byId("openModalBtn").style.display = "none";
+}
+
+// --------------------------------------------------------------
+// TABELA DE TIME WINDOWS (dinâmica)
+// --------------------------------------------------------------
+function refreshTimeWindowsTable() {
+  const stops = parseLines(byId("stops").value);
+  const destination = byId("destination").value.trim();
+  const container = byId("timeWindowsTableContainer");
+  const minutesPerStop = parseInt(getVal("minutesPerStop", "10"));
+  if (stops.length === 0) { container.innerHTML = "<div class='muted'>Nenhuma parada.</div>"; return; }
+  
+  let baseDateISO = "2025-01-01";
+  try {
+    const globalStart = getGlobalStartTimeUTC();
+    baseDateISO = globalStart.split('T')[0];
+  } catch(e) { /* fallback */ }
+  
+  const startTimes = ["09:30", "10:30", "11:15", "12:00"];
+  const endTimes   = ["10:00", "11:00", "11:45", "12:30"];
+  
+  let html = `<div><table style="width:100%"><thead><tr><th>Ponto</th><th>Início (UTC)</th><th>Fim (UTC)</th><th>Serviço (min)</th></tr></thead><tbody id="timeWindowsTableBody">`;
+  for (let i = 0; i < stops.length; i++) {
+    const start = `${baseDateISO}T${startTimes[i]}:00Z`;
+    const end   = `${baseDateISO}T${endTimes[i]}:00Z`;
+    html += `<tr data-type="stop" data-idx="${i}">
+      <td><strong>Parada ${i+1}:</strong> ${stops[i].substring(0,35)}</td>
+      <td><input type="text" class="tw-start" value="${start}" style="width:160px;"></td>
+      <td><input type="text" class="tw-end" value="${end}" style="width:160px;"></td>
+      <td><input type="number" class="tw-duration" value="${minutesPerStop}" min="0" step="1" style="width:80px;"></td>
+    </tr>`;
+  }
+  const destStart = `${baseDateISO}T12:30:00Z`;
+  const destEnd   = `${baseDateISO}T13:00:00Z`;
+  html += `<tr data-type="destination" data-idx="dest">
+    <td><strong>Destino:</strong> ${destination.substring(0,40)}</td>
+      <td><input type="text" class="tw-start" value="${destStart}" style="width:160px;"></td>
+      <td><input type="text" class="tw-end" value="${destEnd}" style="width:160px;"></td>
+      <td><input type="number" class="tw-duration" value="5" min="0" step="1" style="width:80px;"></td>
+  </tr>`;
+  html += `</tbody></table><div class="muted">⏰ As janelas usam a data da partida (${baseDateISO}).</div></div>`;
+  container.innerHTML = html;
+}
+
+function toggleTimeWindowsSection() {
+  const useTW = byId("useTimeWindows").checked;
+  const section = byId("timeWindowsSection");
+  const panel = byId("timeWindowsPanel");
+  if (useTW) {
+    section.style.display = "block";
+    panel.style.display = "block";
+  } else {
+    section.style.display = "none";
+    panel.style.display = "none";
+  }
+}
+
+// Modal
+const modal = byId("cronogramaModal");
+const openModalBtn = byId("openModalBtn");
+const closeModalSpan = document.querySelector(".close-modal");
+openModalBtn.onclick = () => modal.style.display = "block";
+closeModalSpan.onclick = () => modal.style.display = "none";
+window.onclick = (event) => { if (event.target == modal) modal.style.display = "none"; };
+
+// Abrir Google Maps
+function openGoogleMaps() {
+  if (!lastDestination) {
+    setStatus("Calcule uma rota primeiro (Routes API ou Otimização).", "err");
+    return;
+  }
+  const originRef = lastOriginCoord || lastOrigin;
+  if (!originRef) {
+    setStatus("Origem inválida (coordenadas não disponíveis).", "err");
+    return;
+  }
+  const travelMode = getVal("travelMode", "DRIVE");
+  const modeMap = { DRIVE: "driving", TWO_WHEELER: "driving", BICYCLE: "bicycling", WALK: "walking" };
+  let originParam;
+  if (typeof originRef === "string") {
+    originParam = encodeURIComponent(originRef);
+  } else {
+    originParam = `${originRef.lat},${originRef.lng}`;
+  }
+  let waypointsParam = "";
+  if (lastOrderedStops && lastOrderedStops.length) {
+    waypointsParam = "&waypoints=" + lastOrderedStops.map(encodeURIComponent).join("|");
+  }
+  const url = `https://www.google.com/maps/dir/?api=1&origin=${originParam}&destination=${encodeURIComponent(lastDestination)}&travelmode=${modeMap[travelMode] || "driving"}${waypointsParam}`;
+  window.open(url, "_blank");
+}
+
+// Eventos
+byId("originMode").addEventListener("change", () => { byId("originAddressWrap").style.display = getVal("originMode") === "address" ? "block" : "none"; byId("originDeviceWrap").style.display = getVal("originMode") === "device" ? "block" : "none"; });
+byId("btnGetLocation").addEventListener("click", async () => { try { setStatus("Capturando localização...", "warn"); await captureDeviceLocation(); setStatus("Localização capturada.", "ok"); } catch (e) { setStatus(e.message, "err"); } });
+byId("btnShow").addEventListener("click", async () => { try { await showMapFlow(); } catch (e) { logDebug("Erro Routes API", e); setStatus(e.message, "err"); } });
+byId("btnOptimizeRoute").addEventListener("click", async () => { try { await optimizeAndDraw(); } catch (e) { logDebug("Erro Route Optimization", e); setStatus(`Otimização falhou: ${e.message}`, "err"); } });
+byId("btnOpenGoogleMaps").addEventListener("click", openGoogleMaps);
+byId("refreshTimeWindowsBtn").addEventListener("click", refreshTimeWindowsTable);
+byId("minutesPerStop").addEventListener("change", refreshTimeWindowsTable);
+byId("stops").addEventListener("change", refreshTimeWindowsTable);
+byId("destination").addEventListener("change", refreshTimeWindowsTable);
+byId("useTimeWindows").addEventListener("change", toggleTimeWindowsSection);
+onOriginModeChange(); refreshTimeWindowsTable(); toggleTimeWindowsSection();
+function onOriginModeChange() { byId("originAddressWrap").style.display = getVal("originMode") === "address" ? "block" : "none"; byId("originDeviceWrap").style.display = getVal("originMode") === "device" ? "block" : "none"; }
+</script>
+</body>
+</html>
