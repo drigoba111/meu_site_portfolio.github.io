@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Route Optimization - Usando endereços diretamente</title>
+  <title> minha localização</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; background: #eef2f5; }
@@ -70,11 +70,11 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h3>🚛 Otimização com endereços (sem geocodificação para a API)</h3>
+    <h3>🚛 Otimização com janelas relativas à partida</h3>
 
     <label>🔑 API Key (Google Maps + Geocoding + Routes)</label>
     <input id="apiKey" type="password" placeholder="AIza... obrigatória" />
-    <div class="muted">APIs necessárias: Geocoding (para marcadores), Routes, Maps JavaScript.</div>
+    <div class="muted">APIs necessárias: Geocoding, Routes, Maps JavaScript.</div>
 
     <label>🆔 Project ID (Google Cloud)</label>
     <input id="projectId" type="text" placeholder="ex: my-project-123456" />
@@ -139,7 +139,7 @@ Parque Ibirapuera, São Paulo - SP</textarea>
 
     <div class="actions">
       <button id="btnShow">🗺️ Routes API (mapa)</button>
-      <button id="btnOptimizeRoute" style="background:#0b5e2e;">✨ Otimizar (endereços)</button>
+      <button id="btnOptimizeRoute" style="background:#0b5e2e;">✨ Otimizar (Geocoding)</button>
       <button id="btnOpenGoogleMaps">🔗 Abrir Google Maps</button>
     </div>
 
@@ -223,7 +223,7 @@ function addMarker(position, label, title) { const m = new google.maps.Marker({ 
 function drawPolyline(encoded, color = "#1a73e8") { const path = decodePolyline(encoded); const pl = new google.maps.Polyline({ path, map, strokeColor: color, strokeOpacity: 0.95, strokeWeight: 5 }); polylines.push(pl); return path; }
 
 // --------------------------------------------------------------
-// GEOCODING (apenas para marcadores)
+// GEOCODING API
 // --------------------------------------------------------------
 async function geocodeAddress(address, apiKey) {
   if (!address) throw new Error("Endereço vazio");
@@ -237,12 +237,11 @@ async function geocodeAddress(address, apiKey) {
   return { lat: location.lat, lng: location.lng };
 }
 
-async function getAllCoordinatesForMarkers(apiKey, originAddr, destinationAddr, stopsList) {
-  setStatus("🌍 Geocodificando endereços para os marcadores...", "warn");
-  const originCoord = await geocodeAddress(originAddr, apiKey);
+async function getAllCoordinatesFromGeocoding(apiKey, destinationAddr, stopsList) {
+  setStatus("🌍 Geocodificando endereços...", "warn");
   const destCoord = await geocodeAddress(destinationAddr, apiKey);
   const stopsCoords = await Promise.all(stopsList.map(addr => geocodeAddress(addr, apiKey)));
-  return { originCoord, stopsCoords, destCoord };
+  return { stopsCoords, destCoord };
 }
 
 // --------------------------------------------------------------
@@ -301,15 +300,18 @@ async function postComputeRoutes(apiKey, body, extraFieldMask = "") {
 }
 
 // --------------------------------------------------------------
-// ROUTE OPTIMIZATION (USANDO ENDEREÇOS DIRETAMENTE)
+// ROUTE OPTIMIZATION (com janelas relativas à partida)
 // --------------------------------------------------------------
+// Gera as janelas de tempo com base no horário de partida (globalStartTime)
 function generateTimeWindowsFromDeparture(startTimeUTC, numStops) {
   const windows = [];
   const startDate = new Date(startTimeUTC);
+  // Para cada parada, define uma janela começando 30, 90, 150... minutos após a partida, com duração de 30 minutos
+  // Isso garante que as janelas sejam sempre posteriores ao início
   for (let i = 0; i < numStops; i++) {
-    const offsetMinutes = 30 + i * 60;
+    const offsetMinutes = 30 + i * 60; // 30min, 90min, 150min...
     const windowStart = new Date(startDate.getTime() + offsetMinutes * 60 * 1000);
-    const windowEnd = new Date(windowStart.getTime() + 30 * 60 * 1000);
+    const windowEnd = new Date(windowStart.getTime() + 30 * 60 * 1000); // duração 30 min
     windows.push({
       start: windowStart.toISOString().split('.')[0] + 'Z',
       end: windowEnd.toISOString().split('.')[0] + 'Z'
@@ -329,6 +331,7 @@ function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, base
     let durationMin = parseInt(row.querySelector('.tw-duration')?.value) || 0;
     if (durationMin === 0) durationMin = minutesPerStop;
     if (start && end && type) {
+      // Se a data ainda for o placeholder (2025-01-01), substitui pela data base
       if (start.includes('2025-01-01')) start = start.replace('2025-01-01', baseDateISO);
       if (end.includes('2025-01-01')) end = end.replace('2025-01-01', baseDateISO);
       twMap.set(`${type}_${idx}`, { start, end, durationSec: durationMin * 60 });
@@ -341,6 +344,7 @@ function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, base
     if (tw && tw.start && tw.end) {
       visits.push({ address: stopsList[i], duration: `${tw.durationSec}s`, timeWindows: [{ startTime: tw.start, endTime: tw.end }] });
     } else {
+      // Se não há janela personalizada, gera uma automática baseada no horário de partida
       const windows = generateTimeWindowsFromDeparture(globalStartTimeUTC, stopsList.length);
       visits.push({ address: stopsList[i], duration: `${minutesPerStop * 60}s`, timeWindows: [{ startTime: windows[i].start, endTime: windows[i].end }] });
     }
@@ -352,7 +356,7 @@ function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, base
   return { visits, destTimeWindows, destDurationSec };
 }
 
-async function callRouteOptimizationWithAddresses(projectId, originAddr, destAddr, stopsList, travelMode, minutesPerStop, useTimeWindows) {
+async function callRouteOptimizationWithCoords(projectId, originCoord, stopsCoords, destCoord, stopsList, travelMode, minutesPerStop, useTimeWindows) {
   const token = byId("oauthToken").value.trim();
   if (!token) throw new Error("Access Token OAuth2 obrigatório.");
   if (!projectId) throw new Error("Project ID obrigatório.");
@@ -362,12 +366,12 @@ async function callRouteOptimizationWithAddresses(projectId, originAddr, destAdd
 
   let visits, destTimeWindows, destDurationSec;
   if (useTimeWindows) {
-    const twData = buildTimeWindowsFromUI(stopsList, destAddr, minutesPerStop, baseDate, globalStartTime);
+    const twData = buildTimeWindowsFromUI(stopsList, byId("destination").value.trim(), minutesPerStop, baseDate, globalStartTime);
     visits = twData.visits;
     destTimeWindows = twData.destTimeWindows;
     destDurationSec = twData.destDurationSec;
   } else {
-    visits = stopsList.map(addr => ({
+    visits = stopsList.map((addr, i) => ({
       address: addr,
       duration: `${minutesPerStop * 60}s`
     }));
@@ -381,9 +385,10 @@ async function callRouteOptimizationWithAddresses(projectId, originAddr, destAdd
   const shipments = [];
   for (let i = 0; i < visits.length; i++) {
     const v = visits[i];
+    const coords = stopsCoords[i];
     const shipmentObj = {
       pickups: [{
-        arrivalWaypoint: { address: v.address },
+        arrivalWaypoint: { location: { latLng: { latitude: coords.lat, longitude: coords.lng } } },
         duration: v.duration
       }]
     };
@@ -392,8 +397,8 @@ async function callRouteOptimizationWithAddresses(projectId, originAddr, destAdd
   }
 
   const vehicle = {
-    startWaypoint: { address: originAddr },
-    endWaypoint: { address: destAddr },
+    startWaypoint: { location: { latLng: { latitude: originCoord.lat, longitude: originCoord.lng } } },
+    endWaypoint: { location: { latLng: { latitude: destCoord.lat, longitude: destCoord.lng } } },
     travelMode: apiTravelMode,
     costPerHour: 1.0,
     costPerTraveledHour: 1.0,
@@ -406,7 +411,7 @@ async function callRouteOptimizationWithAddresses(projectId, originAddr, destAdd
       shipments.push({
         pickups: [],
         deliveries: [{
-          arrivalWaypoint: { address: destAddr },
+          arrivalWaypoint: { location: { latLng: { latitude: destCoord.lat, longitude: destCoord.lng } } },
           duration: `${destDurationSec}s`,
           timeWindows: destTimeWindows
         }]
@@ -542,7 +547,7 @@ function buildDetailedTable(routeData, stopsList, originLabel, destinationLabel,
       <td>${minutesPerStop}</td>
       <td>${serviceEndTimeLocal}</td>
       <td>${observation}</td>
-    </tr>`;
+    <tr>`;
     previousLocation = nextLocation;
   }
   html += `</tbody></table></div>`;
@@ -550,12 +555,13 @@ function buildDetailedTable(routeData, stopsList, originLabel, destinationLabel,
 }
 
 // --------------------------------------------------------------
-// OTIMIZAÇÃO PRINCIPAL (USANDO ENDEREÇOS)
+// OTIMIZAÇÃO PRINCIPAL
 // --------------------------------------------------------------
 async function optimizeAndDraw() {
   debugLines = []; byId("debug").textContent = ""; byId("summary").innerHTML = ""; byId("detailedTable").innerHTML = "";
   const apiKey = byId("apiKey").value.trim();
   const projectId = byId("projectId").value.trim();
+  if (getVal("originMode") === "device") await ensureDeviceIfNeeded();
   const originInput = getOriginInput();
   const originAddr = originInput.text || originInput.label;
   const destination = byId("destination").value.trim();
@@ -566,26 +572,25 @@ async function optimizeAndDraw() {
   
   if (!apiKey) throw new Error("API Key necessária (Geocoding, Routes, Maps)");
   if (!projectId) throw new Error("Project ID obrigatório");
-  if (!originAddr || !destination) throw new Error("Origem e destino obrigatórios");
+  if ((!originInput.coord && !originInput.text) || !destination) throw new Error("Origem e destino obrigatórios");
   
-  setStatus("🔄 Carregando mapa...", "warn");
+  setStatus("🔄 Carregando mapa e geocodificando...", "warn");
   await loadMapsScript(apiKey);
   ensureMap();
   clearMap();
 
-  // Obtém coordenadas APENAS para os marcadores (usa Geocoding)
-  const { originCoord, stopsCoords, destCoord } = await getAllCoordinatesForMarkers(apiKey, originAddr, destination, stops);
-  logDebug("Coordenadas obtidas para marcadores", { originCoord, stopsCoords, destCoord });
+  const originCoord = originInput.coord || await geocodeAddress(originInput.text, apiKey);
+  const { stopsCoords, destCoord } = await getAllCoordinatesFromGeocoding(apiKey, destination, stops);
+  logDebug("Coordenadas obtidas via Geocoding", { originCoord, stopsCoords, destCoord });
   
-  setStatus("🔄 Chamando Route Optimization (com endereços)...", "warn");
-  const optResult = await callRouteOptimizationWithAddresses(projectId, originAddr, destination, stops, travelMode, minutesPerStop, useTimeWindows);
+  setStatus("🔄 Chamando Route Optimization...", "warn");
+  const optResult = await callRouteOptimizationWithCoords(projectId, originCoord, stopsCoords, destCoord, stops, travelMode, minutesPerStop, useTimeWindows);
   
   const polyline = extractPolyline(optResult);
   const pathPoints = drawPolyline(polyline, "#2e7d32");
   const bounds = new google.maps.LatLngBounds();
   pathPoints.forEach(p => bounds.extend(p));
   
-  // Adiciona marcadores (usando as coordenadas já obtidas)
   addMarker(new google.maps.LatLng(originCoord.lat, originCoord.lng), "I", "Origem");
   bounds.extend(new google.maps.LatLng(originCoord.lat, originCoord.lng));
   for (let i = 0; i < stopsCoords.length; i++) {
@@ -609,7 +614,7 @@ async function optimizeAndDraw() {
   lastOrderedStops = orderedStops.length ? orderedStops : stops.slice();
   
   byId("summary").innerHTML = `
-    <p><strong>✅ Rota otimizada (endereços diretos)</strong> (Project ID: ${projectId})</p>
+    <p><strong>✅ Rota otimizada (janelas relativas à partida)</strong> (Project ID: ${projectId})</p>
     <p><strong>Origem:</strong> ${originAddr}<br><strong>Destino:</strong> ${destination}</p>
     <p><strong>Distância total:</strong> ${totalDist} km &nbsp;|&nbsp; <strong>Tempo total:</strong> ${totalTime}</p>
     <p><strong>Tempo de espera acumulado:</strong> ${waitTotal} ${waitTotal !== "0" ? "(⏱️ houve espera)" : ""}</p>
@@ -622,7 +627,7 @@ async function optimizeAndDraw() {
   byId("openModalBtn").style.display = "inline-block";
   byId("modalTableContainer").innerHTML = detailedHtml;
   
-  setStatus("Otimização concluída usando endereços diretamente!", "ok");
+  setStatus("Otimização concluída! (janelas compatíveis com a partida)", "ok");
 }
 
 // --------------------------------------------------------------
@@ -714,6 +719,7 @@ function refreshTimeWindowsTable() {
   const minutesPerStop = parseInt(getVal("minutesPerStop", "10"));
   if (stops.length === 0) { container.innerHTML = "<div class='muted'>Nenhuma parada.</div>"; return; }
   
+  // Obtém o horário de partida UTC
   let globalStartUTC;
   try {
     globalStartUTC = getGlobalStartTimeUTC();
@@ -722,9 +728,10 @@ function refreshTimeWindowsTable() {
   }
   const startDate = new Date(globalStartUTC);
   
+  // Gera janelas baseadas na partida: offsets de 30, 90, 150... minutos
   const windows = [];
   for (let i = 0; i < stops.length; i++) {
-    const offsetMinutes = 30 + i * 60;
+    const offsetMinutes = 30 + i * 60; // 30min, 90min, 150min
     const windowStart = new Date(startDate.getTime() + offsetMinutes * 60 * 1000);
     const windowEnd = new Date(windowStart.getTime() + 30 * 60 * 1000);
     windows.push({
@@ -744,6 +751,7 @@ function refreshTimeWindowsTable() {
       <td><input type="number" class="tw-duration" value="${minutesPerStop}" min="0" step="1" style="width:80px;"></td>
     </tr>`;
   }
+  // Destino: janela após a última parada (última janela + 60min)
   const lastWindowEnd = new Date(windows[windows.length-1].end);
   const destStart = new Date(lastWindowEnd.getTime() + 30 * 60 * 1000);
   const destEnd = new Date(destStart.getTime() + 30 * 60 * 1000);
@@ -755,7 +763,7 @@ function refreshTimeWindowsTable() {
       <td><input type="text" class="tw-end" value="${destEndStr}" style="width:160px;"></td>
       <td><input type="number" class="tw-duration" value="5" min="0" step="1" style="width:80px;"></td>
   </tr>`;
-  html += `</tbody><td><div class="muted">⏰ Janelas geradas automaticamente a partir da partida (${formatLocalDateTime(globalStartUTC)}). Ajuste se necessário.</div></div>`;
+  html += `</tbody><table><div class="muted">⏰ Janelas geradas automaticamente a partir da partida (${formatLocalDateTime(globalStartUTC)}). Ajuste se necessário.</div></div>`;
   container.innerHTML = html;
 }
 
