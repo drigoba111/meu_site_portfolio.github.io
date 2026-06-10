@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Route Optimization - com considerRoadTraffic corrigido</title>
+  <title>Route Optimization - Janelas dinâmicas relativas à partida</title>
   <style>
     * { box-sizing: border-box; }
     body { font-family: 'Segoe UI', Roboto, Arial, sans-serif; margin: 0; background: #eef2f5; }
@@ -70,7 +70,7 @@
 <body>
 <div class="wrap">
   <div class="panel">
-    <h3>🚛 Otimização com Geocoding + considerRoadTraffic</h3>
+    <h3>🚛 Otimização com janelas relativas à partida</h3>
 
     <label>🔑 API Key (Google Maps + Geocoding + Routes)</label>
     <input id="apiKey" type="password" placeholder="AIza... obrigatória" />
@@ -128,13 +128,13 @@ Parque Ibirapuera, São Paulo - SP</textarea>
     <label class="checkbox-label">
       <input type="checkbox" id="useTimeWindows" checked> Usar janelas de tempo (restritivo)
     </label>
-    <div class="muted">Quando desligado, apenas o tempo de parada será considerado.</div>
+    <div class="muted">Quando desligado, apenas o tempo de parada será considerado. As janelas serão geradas automaticamente com base no horário de partida.</div>
 
-    <div id="timeWindowsSection" class="section-title">📅 Janelas de tempo (dinâmicas)</div>
+    <div id="timeWindowsSection" class="section-title">📅 Janelas de tempo (relativas à partida)</div>
     <div id="timeWindowsPanel" style="background:#f9fbfd; border-radius: 16px; padding: 12px; margin: 8px 0;">
-      <button id="refreshTimeWindowsBtn" type="button" style="background:#2c3e66; margin-bottom: 10px;">🔄 Gerar janelas com data da partida</button>
+      <button id="refreshTimeWindowsBtn" type="button" style="background:#2c3e66; margin-bottom: 10px;">🔄 Gerar janelas relativas à partida</button>
       <div id="timeWindowsTableContainer" style="max-height: 280px; overflow-y: auto;"></div>
-      <div class="muted">⏰ As janelas usam a data da partida para evitar erro "outside global time window".</div>
+      <div class="muted">⏰ As janelas são calculadas a partir do horário de partida + deslocamentos (ex: +30min, +90min, etc.)</div>
     </div>
 
     <div class="actions">
@@ -301,9 +301,27 @@ async function postComputeRoutes(apiKey, body, extraFieldMask = "") {
 }
 
 // --------------------------------------------------------------
-// ROUTE OPTIMIZATION (com considerRoadTraffic e janelas dinâmicas)
+// ROUTE OPTIMIZATION (com janelas relativas à partida)
 // --------------------------------------------------------------
-function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, baseDateISO) {
+// Gera as janelas de tempo com base no horário de partida (globalStartTime)
+function generateTimeWindowsFromDeparture(startTimeUTC, numStops) {
+  const windows = [];
+  const startDate = new Date(startTimeUTC);
+  // Para cada parada, define uma janela começando 30, 90, 150... minutos após a partida, com duração de 30 minutos
+  // Isso garante que as janelas sejam sempre posteriores ao início
+  for (let i = 0; i < numStops; i++) {
+    const offsetMinutes = 30 + i * 60; // 30min, 90min, 150min...
+    const windowStart = new Date(startDate.getTime() + offsetMinutes * 60 * 1000);
+    const windowEnd = new Date(windowStart.getTime() + 30 * 60 * 1000); // duração 30 min
+    windows.push({
+      start: windowStart.toISOString().split('.')[0] + 'Z',
+      end: windowEnd.toISOString().split('.')[0] + 'Z'
+    });
+  }
+  return windows;
+}
+
+function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, baseDateISO, globalStartTimeUTC) {
   const rows = document.querySelectorAll('#timeWindowsTableBody tr');
   const twMap = new Map();
   rows.forEach(row => {
@@ -314,6 +332,7 @@ function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, base
     let durationMin = parseInt(row.querySelector('.tw-duration')?.value) || 0;
     if (durationMin === 0) durationMin = minutesPerStop;
     if (start && end && type) {
+      // Se a data ainda for o placeholder (2025-01-01), substitui pela data base
       if (start.includes('2025-01-01')) start = start.replace('2025-01-01', baseDateISO);
       if (end.includes('2025-01-01')) end = end.replace('2025-01-01', baseDateISO);
       twMap.set(`${type}_${idx}`, { start, end, durationSec: durationMin * 60 });
@@ -326,7 +345,9 @@ function buildTimeWindowsFromUI(stopsList, destinationAddr, minutesPerStop, base
     if (tw && tw.start && tw.end) {
       visits.push({ address: stopsList[i], duration: `${tw.durationSec}s`, timeWindows: [{ startTime: tw.start, endTime: tw.end }] });
     } else {
-      visits.push({ address: stopsList[i], duration: `${minutesPerStop * 60}s` });
+      // Se não há janela personalizada, gera uma automática baseada no horário de partida
+      const windows = generateTimeWindowsFromDeparture(globalStartTimeUTC, stopsList.length);
+      visits.push({ address: stopsList[i], duration: `${minutesPerStop * 60}s`, timeWindows: [{ startTime: windows[i].start, endTime: windows[i].end }] });
     }
   }
   const destKey = "destination";
@@ -346,7 +367,7 @@ async function callRouteOptimizationWithCoords(projectId, originCoord, stopsCoor
 
   let visits, destTimeWindows, destDurationSec;
   if (useTimeWindows) {
-    const twData = buildTimeWindowsFromUI(stopsList, byId("destination").value.trim(), minutesPerStop, baseDate);
+    const twData = buildTimeWindowsFromUI(stopsList, byId("destination").value.trim(), minutesPerStop, baseDate, globalStartTime);
     visits = twData.visits;
     destTimeWindows = twData.destTimeWindows;
     destDurationSec = twData.destDurationSec;
@@ -407,7 +428,6 @@ async function callRouteOptimizationWithCoords(projectId, originCoord, stopsCoor
   const routingPref = getVal("routingPreference", "TRAFFIC_AWARE");
   const considerRoadTraffic = (routingPref !== "TRAFFIC_UNAWARE");
 
-  // PAYLOAD CORRIGIDO: inclui considerRoadTraffic
   const payload = {
     model: {
       vehicles: [vehicle],
@@ -528,7 +548,7 @@ function buildDetailedTable(routeData, stopsList, originLabel, destinationLabel,
       <td>${minutesPerStop}</td>
       <td>${serviceEndTimeLocal}</td>
       <td>${observation}</td>
-    </tr>`;
+    <tr>`;
     previousLocation = nextLocation;
   }
   html += `</tbody></table></div>`;
@@ -593,11 +613,11 @@ async function optimizeAndDraw() {
   lastOrderedStops = orderedStops.length ? orderedStops : stops.slice();
   
   byId("summary").innerHTML = `
-    <p><strong>✅ Rota otimizada (Geocoding + considerRoadTraffic)</strong> (Project ID: ${projectId})</p>
+    <p><strong>✅ Rota otimizada (janelas relativas à partida)</strong> (Project ID: ${projectId})</p>
     <p><strong>Origem:</strong> ${originAddr}<br><strong>Destino:</strong> ${destination}</p>
     <p><strong>Distância total:</strong> ${totalDist} km &nbsp;|&nbsp; <strong>Tempo total:</strong> ${totalTime}</p>
     <p><strong>Tempo de espera acumulado:</strong> ${waitTotal} ${waitTotal !== "0" ? "(⏱️ houve espera)" : ""}</p>
-    <p><strong>Janelas de tempo:</strong> ${useTimeWindows ? "ATIVAS" : "DESATIVADAS (apenas tempo de serviço)"}</p>
+    <p><strong>Janelas de tempo:</strong> ${useTimeWindows ? "ATIVAS (geradas a partir da partida)" : "DESATIVADAS (apenas tempo de serviço)"}</p>
     <p><span class="badge">⏱️ Minutos por parada: ${minutesPerStop}</span></p>
   `;
   
@@ -606,11 +626,11 @@ async function optimizeAndDraw() {
   byId("openModalBtn").style.display = "inline-block";
   byId("modalTableContainer").innerHTML = detailedHtml;
   
-  setStatus("Otimização concluída! (com considerRoadTraffic)", "ok");
+  setStatus("Otimização concluída! (janelas compatíveis com a partida)", "ok");
 }
 
 // --------------------------------------------------------------
-// ROUTES API ORIGINAL (showMapFlow) - também atualiza variáveis
+// ROUTES API ORIGINAL (showMapFlow)
 // --------------------------------------------------------------
 async function showMapFlow() {
   debugLines = []; byId("debug").textContent = ""; byId("summary").innerHTML = ""; byId("detailedTable").innerHTML = "";
@@ -689,7 +709,7 @@ async function showMapFlow() {
 }
 
 // --------------------------------------------------------------
-// TABELA DE TIME WINDOWS (dinâmica)
+// TABELA DE TIME WINDOWS (geração com base na partida)
 // --------------------------------------------------------------
 function refreshTimeWindowsTable() {
   const stops = parseLines(byId("stops").value);
@@ -698,19 +718,31 @@ function refreshTimeWindowsTable() {
   const minutesPerStop = parseInt(getVal("minutesPerStop", "10"));
   if (stops.length === 0) { container.innerHTML = "<div class='muted'>Nenhuma parada.</div>"; return; }
   
-  let baseDateISO = "2025-01-01";
+  // Obtém o horário de partida UTC
+  let globalStartUTC;
   try {
-    const globalStart = getGlobalStartTimeUTC();
-    baseDateISO = globalStart.split('T')[0];
-  } catch(e) { /* fallback */ }
+    globalStartUTC = getGlobalStartTimeUTC();
+  } catch(e) {
+    globalStartUTC = new Date().toISOString();
+  }
+  const startDate = new Date(globalStartUTC);
   
-  const startTimes = ["09:30", "10:30", "11:15", "12:00"];
-  const endTimes   = ["10:00", "11:00", "11:45", "12:30"];
+  // Gera janelas baseadas na partida: offsets de 30, 90, 150... minutos
+  const windows = [];
+  for (let i = 0; i < stops.length; i++) {
+    const offsetMinutes = 30 + i * 60; // 30min, 90min, 150min
+    const windowStart = new Date(startDate.getTime() + offsetMinutes * 60 * 1000);
+    const windowEnd = new Date(windowStart.getTime() + 30 * 60 * 1000);
+    windows.push({
+      start: windowStart.toISOString().split('.')[0] + 'Z',
+      end: windowEnd.toISOString().split('.')[0] + 'Z'
+    });
+  }
   
   let html = `<div><table style="width:100%"><thead><tr><th>Ponto</th><th>Início (UTC)</th><th>Fim (UTC)</th><th>Serviço (min)</th></tr></thead><tbody id="timeWindowsTableBody">`;
   for (let i = 0; i < stops.length; i++) {
-    const start = `${baseDateISO}T${startTimes[i]}:00Z`;
-    const end   = `${baseDateISO}T${endTimes[i]}:00Z`;
+    const start = windows[i].start;
+    const end = windows[i].end;
     html += `<tr data-type="stop" data-idx="${i}">
       <td><strong>Parada ${i+1}:</strong> ${stops[i].substring(0,35)}</td>
       <td><input type="text" class="tw-start" value="${start}" style="width:160px;"></td>
@@ -718,15 +750,19 @@ function refreshTimeWindowsTable() {
       <td><input type="number" class="tw-duration" value="${minutesPerStop}" min="0" step="1" style="width:80px;"></td>
     </tr>`;
   }
-  const destStart = `${baseDateISO}T12:30:00Z`;
-  const destEnd   = `${baseDateISO}T13:00:00Z`;
+  // Destino: janela após a última parada (última janela + 60min)
+  const lastWindowEnd = new Date(windows[windows.length-1].end);
+  const destStart = new Date(lastWindowEnd.getTime() + 30 * 60 * 1000);
+  const destEnd = new Date(destStart.getTime() + 30 * 60 * 1000);
+  const destStartStr = destStart.toISOString().split('.')[0] + 'Z';
+  const destEndStr = destEnd.toISOString().split('.')[0] + 'Z';
   html += `<tr data-type="destination" data-idx="dest">
     <td><strong>Destino:</strong> ${destination.substring(0,40)}</td>
-      <td><input type="text" class="tw-start" value="${destStart}" style="width:160px;"></td>
-      <td><input type="text" class="tw-end" value="${destEnd}" style="width:160px;"></td>
+      <td><input type="text" class="tw-start" value="${destStartStr}" style="width:160px;"></td>
+      <td><input type="text" class="tw-end" value="${destEndStr}" style="width:160px;"></td>
       <td><input type="number" class="tw-duration" value="5" min="0" step="1" style="width:80px;"></td>
   </tr>`;
-  html += `</tbody></table><div class="muted">⏰ As janelas usam a data da partida (${baseDateISO}).</div></div>`;
+  html += `</tbody><table><div class="muted">⏰ Janelas geradas automaticamente a partir da partida (${formatLocalDateTime(globalStartUTC)}). Ajuste se necessário.</div></div>`;
   container.innerHTML = html;
 }
 
