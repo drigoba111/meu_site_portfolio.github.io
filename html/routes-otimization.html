@@ -478,9 +478,13 @@ function extractOptimizedOrder(routeData, originalStops) {
   const indexToAddress = {};
   for (let i = 0; i < originalStops.length; i++) indexToAddress[i] = originalStops[i];
   for (const visit of visits) {
-    if (visit.shipmentIndex !== undefined && indexToAddress[visit.shipmentIndex]) {
+   if (visit.shipmentIndex !== undefined && indexToAddress[visit.shipmentIndex]) {
       ordered.push(indexToAddress[visit.shipmentIndex]);
+    } else {
+      ordered.push(indexToAddress[0]);
+
     }
+
   }
   return ordered;
 }
