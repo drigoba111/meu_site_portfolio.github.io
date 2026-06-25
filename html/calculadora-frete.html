@@ -1,0 +1,347 @@
+<!doctype html>
+<html lang='pt-BR'>
+<head>
+  <meta charset='utf-8' />
+  <meta name='viewport' content='width=device-width, initial-scale=1' />
+  <title>Calculadora de Frete</title>
+  <style>
+    :root {
+      --bg: #f5f7fb;
+      --card: #ffffff;
+      --border: #dfe7f0;
+      --text: #162033;
+      --muted: #64748b;
+      --primary: #2563eb;
+      --primary-dark: #1d4ed8;
+      --ok: #0f766e;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Segoe UI', Roboto, Arial, sans-serif; background: var(--bg); color: var(--text); }
+    .page { max-width: 1100px; margin: 0 auto; padding: 24px; }
+    .card { background: var(--card); border: 1px solid var(--border); border-radius: 22px; box-shadow: 0 10px 30px rgba(15, 23, 42, 0.06); padding: 22px; }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    .subtitle { color: var(--muted); margin-bottom: 18px; }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+    .panel { background: #f8fbff; border: 1px solid var(--border); border-radius: 16px; padding: 16px; }
+    label { display: block; margin-top: 10px; font-weight: 600; font-size: 13px; color: #1f2937; }
+    input, textarea, select, button { width: 100%; padding: 10px 12px; border-radius: 12px; border: 1px solid #cbd5e1; font-size: 14px; margin-top: 6px; }
+    textarea { min-height: 96px; resize: vertical; }
+    button { background: var(--primary); color: white; font-weight: 600; cursor: pointer; border: none; }
+    button:hover { background: var(--primary-dark); }
+    .actions { display: flex; gap: 10px; margin-top: 16px; }
+    .actions button { flex: 1; }
+    .muted { color: var(--muted); font-size: 12px; margin-top: 4px; }
+    .status { margin-top: 14px; padding: 10px 12px; border-radius: 12px; font-weight: 600; }
+    .status.ok { background: #ecfdf5; color: var(--ok); }
+    .status.err { background: #fef2f2; color: var(--danger); }
+    .status.warn { background: #fffbeb; color: #b45309; }
+    .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.65); z-index: 999; padding: 18px; overflow: auto; }
+    .modal-content { background: white; border-radius: 18px; max-width: 1000px; margin: 20px auto; padding: 20px; position: relative; }
+    .close-btn { position: absolute; right: 16px; top: 12px; font-size: 24px; cursor: pointer; color: #64748b; background: transparent; border: none; width: auto; padding: 0; }
+    table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+    th, td { border: 1px solid var(--border); padding: 8px; text-align: left; vertical-align: top; }
+    th { background: #f8fafc; }
+    .summary-box { padding: 12px; border-radius: 12px; background: #f8fafc; margin-top: 12px; }
+  </style>
+</head>
+<body>
+  <div class='page'>
+    <div class='card'>
+      <h1>🚚 Calculadora de Frete</h1>
+      <div class='subtitle'>Calcule custo de entrega com rota otimizada, sem mapa, usando apenas endereços e custos operacionais.</div>
+
+      <div class='grid'>
+        <div class='panel'>
+          <h3>Dados da rota</h3>
+          <label>🔑 API Key do Google</label>
+          <input id='apiKey' type='password' placeholder='AIza...' />
+
+          <label>🆔 Project ID</label>
+          <input id='projectId' placeholder='ex: my-project-123456' />
+
+          <label>🔐 OAuth2 Access Token</label>
+          <input id='oauthToken' type='password' placeholder='Token com escopo cloud-platform' />
+
+          <label>📍 Origem</label>
+          <input id='origin' value='Av. Paulista, 1000, São Paulo - SP' />
+
+          <label>🏁 Destino</label>
+          <input id='destination' value='Aeroporto de Congonhas, São Paulo - SP' />
+
+          <label>🛑 Paradas</label>
+          <textarea id='stops'>Rua Funchal, 500, São Paulo - SP
+Shopping Eldorado, São Paulo - SP
+Museu da Imagem e do Som, São Paulo - SP</textarea>
+
+          <label>⏱️ Tempo de serviço por parada (min)</label>
+          <input id='minutesPerStop' type='number' value='10' />
+
+          <label>🚦 Modo de condução</label>
+          <select id='travelMode'>
+            <option value='DRIVE' selected>Carro</option>
+            <option value='TWO_WHEELER'>Moto</option>
+            <option value='BICYCLE'>Bicicleta</option>
+            <option value='WALK'>A pé</option>
+          </select>
+        </div>
+
+        <div class='panel'>
+          <h3>Custos operacionais</h3>
+          <label>⛽ Km por litro</label>
+          <input id='kmPerLiter' type='number' step='0.01' value='10' />
+
+          <label>💵 Valor do combustível por litro</label>
+          <input id='fuelPrice' type='number' step='0.01' value='5.80' />
+
+          <label>🧑‍🔧 Custo por km do motorista</label>
+          <input id='driverCostPerKm' type='number' step='0.01' value='0.80' />
+
+          <label>🛣️ Pedágio estimado</label>
+          <input id='tollCost' type='number' step='0.01' value='0' />
+
+          <label>➕ Outros custos fixos</label>
+          <input id='otherFixedCost' type='number' step='0.01' value='0' />
+
+          <label>📈 Margem de lucro (%)</label>
+          <input id='marginPercent' type='number' step='0.01' value='15' />
+
+          <label>📦 Valor por parada adicional</label>
+          <input id='extraPerStop' type='number' step='0.01' value='5' />
+
+          <div class='muted'>Os valores de custo são calculados com base na distância otimizada retornada pela API.</div>
+        </div>
+      </div>
+
+      <div class='actions'>
+        <button id='btnCalculate'>🧮 Calcular frete</button>
+        <button id='btnOpenModal' style='background:#0f766e;'>📋 Abrir modal de dados</button>
+      </div>
+
+      <div id='status' class='status'>Preencha os campos e calcule a rota.</div>
+      <div id='summary' class='summary-box' style='display:none;'></div>
+    </div>
+  </div>
+
+  <div id='resultModal' class='modal'>
+    <div class='modal-content'>
+      <button class='close-btn' id='closeModal'>&times;</button>
+      <h2 style='margin-top:0;'>📋 Dados de entrada e resultado</h2>
+      <div id='modalBody'></div>
+    </div>
+  </div>
+
+  <script>
+    const ROUTES_URL = 'https://routeoptimization.googleapis.com/v1/projects/PROJECT_ID:optimizeTours';
+    const GEOCODE_URL = 'https://maps.googleapis.com/maps/api/geocode/json';
+
+    const byId = id => document.getElementById(id);
+    const parseLines = value => value.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    const toNumber = value => Number(value || 0);
+    const money = value => Number(value || 0).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+    const formatDistance = meters => (meters / 1000).toFixed(2) + ' km';
+    const formatDuration = seconds => {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${h}h ${m}min ${s}s`;
+    };
+
+    async function geocodeAddress(address, apiKey) {
+      const url = `${GEOCODE_URL}?address=${encodeURIComponent(address)}&key=${apiKey}`;
+      const response = await fetch(url);
+      const data = await response.json();
+      if (data.status !== 'OK' || !data.results.length) throw new Error(`Geocodificação falhou para: ${address}`);
+      const loc = data.results[0].geometry.location;
+      return { lat: loc.lat, lng: loc.lng };
+    }
+
+    function setStatus(message, type = 'warn') {
+      const el = byId('status');
+      el.className = `status ${type}`;
+      el.textContent = message;
+    }
+
+    function getFormValues() {
+      return {
+        apiKey: byId('apiKey').value.trim(),
+        projectId: byId('projectId').value.trim(),
+        oauthToken: byId('oauthToken').value.trim(),
+        origin: byId('origin').value.trim(),
+        destination: byId('destination').value.trim(),
+        stops: parseLines(byId('stops').value),
+        minutesPerStop: toNumber(byId('minutesPerStop').value),
+        travelMode: byId('travelMode').value,
+        kmPerLiter: toNumber(byId('kmPerLiter').value),
+        fuelPrice: toNumber(byId('fuelPrice').value),
+        driverCostPerKm: toNumber(byId('driverCostPerKm').value),
+        tollCost: toNumber(byId('tollCost').value),
+        otherFixedCost: toNumber(byId('otherFixedCost').value),
+        marginPercent: toNumber(byId('marginPercent').value),
+        extraPerStop: toNumber(byId('extraPerStop').value)
+      };
+    }
+
+    function buildPayload(values, originCoord, stopsCoords, destCoord) {
+      const travelModeMap = { DRIVE: 'DRIVING', TWO_WHEELER: 'DRIVING', BICYCLE: 'CYCLING', WALK: 'WALKING' };
+      const shipments = values.stops.map((address, index) => ({
+        pickups: [{
+          arrivalWaypoint: { location: { latLng: { latitude: stopsCoords[index].lat, longitude: stopsCoords[index].lng } } },
+          duration: `${Math.max(0, values.minutesPerStop) * 60}s`
+        }]
+      }));
+
+      const vehicle = {
+        startWaypoint: { location: { latLng: { latitude: originCoord.lat, longitude: originCoord.lng } } },
+        endWaypoint: { location: { latLng: { latitude: destCoord.lat, longitude: destCoord.lng } } },
+        travelMode: travelModeMap[values.travelMode] || 'DRIVING',
+        costPerHour: 1.0,
+        costPerTraveledHour: 1.0,
+        costPerKilometer: 0.0001
+      };
+
+      const now = new Date();
+      const start = new Date(now.getTime() + 5 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+      const end = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString().split('.')[0] + 'Z';
+
+      return {
+        model: { vehicles: [vehicle], shipments, globalStartTime: start, globalEndTime: end },
+        considerRoadTraffic: true,
+        populatePolylines: true,
+        maxValidationErrors: 10,
+        timeout: '30s'
+      };
+    }
+
+    async function calculateRoute(values) {
+      if (!values.apiKey) throw new Error('Informe a API Key do Google.');
+      if (!values.projectId) throw new Error('Informe o Project ID.');
+      if (!values.oauthToken) throw new Error('Informe o OAuth2 Access Token.');
+      if (!values.origin || !values.destination) throw new Error('Origem e destino são obrigatórios.');
+
+      setStatus('🌍 Geocodificando endereços...', 'warn');
+      const originCoord = await geocodeAddress(values.origin, values.apiKey);
+      const stopsCoords = await Promise.all(values.stops.map(addr => geocodeAddress(addr, values.apiKey)));
+      const destCoord = await geocodeAddress(values.destination, values.apiKey);
+
+      const payload = buildPayload(values, originCoord, stopsCoords, destCoord);
+      const url = `https://routeoptimization.googleapis.com/v1/projects/${values.projectId}:optimizeTours`;
+
+      setStatus('🚚 Enviando otimização da rota...', 'warn');
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${values.oauthToken}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error?.message || 'Falha na Route Optimization.');
+      }
+
+      return { data, originCoord, stopsCoords, destCoord, values };
+    }
+
+    function buildResultTable(result, values) {
+      const route = result.data.routes?.[0] || {};
+      const distanceMeters = route.metrics?.travelDistanceMeters || 0;
+      const durationSeconds = route.metrics?.totalDuration ? Number(route.metrics.totalDuration.replace(/s/g, '')) : 0;
+      const distanceKm = distanceMeters / 1000;
+      const fuelCost = (distanceKm / Math.max(values.kmPerLiter, 0.01)) * values.fuelPrice;
+      const driverCost = distanceKm * values.driverCostPerKm;
+      const stopsCost = values.stops.length * values.extraPerStop;
+      const subtotal = fuelCost + driverCost + values.tollCost + values.otherFixedCost + stopsCost;
+      const marginValue = subtotal * (values.marginPercent / 100);
+      const total = subtotal + marginValue;
+
+      const rows = [
+        ['Distância total', formatDistance(distanceMeters)],
+        ['Tempo estimado', formatDuration(durationSeconds)],
+        ['Combustível', money(fuelCost)],
+        ['Motorista', money(driverCost)],
+        ['Pedágio', money(values.tollCost)],
+        ['Custos fixos', money(values.otherFixedCost)],
+        ['Custos por parada', money(stopsCost)],
+        ['Subtotal', money(subtotal)],
+        ['Margem', money(marginValue)],
+        ['Total com margem', money(total)]
+      ];
+
+      return `
+        <div class='summary-box'>
+          <strong>Resumo financeiro</strong>
+          <table>
+            <tbody>
+              ${rows.map(([label, value]) => `<tr><td>${label}</td><td>${value}</td></tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function buildModalContent(values, result) {
+      const route = result.data.routes?.[0] || {};
+      const distanceMeters = route.metrics?.travelDistanceMeters || 0;
+      const durationSeconds = route.metrics?.totalDuration ? Number(route.metrics.totalDuration.replace(/s/g, '')) : 0;
+      return `
+        <h3>Entrada</h3>
+        <table>
+          <tbody>
+            <tr><th>Origem</th><td>${values.origin}</td></tr>
+            <tr><th>Destino</th><td>${values.destination}</td></tr>
+            <tr><th>Paradas</th><td>${values.stops.join(' • ') || 'Nenhuma'}</td></tr>
+            <tr><th>Tempo por parada</th><td>${values.minutesPerStop} min</td></tr>
+            <tr><th>Km/L</th><td>${values.kmPerLiter}</td></tr>
+            <tr><th>Combustível/L</th><td>${money(values.fuelPrice)}</td></tr>
+            <tr><th>Custo motorista/km</th><td>${money(values.driverCostPerKm)}</td></tr>
+            <tr><th>Pedágio</th><td>${money(values.tollCost)}</td></tr>
+            <tr><th>Outros fixos</th><td>${money(values.otherFixedCost)}</td></tr>
+            <tr><th>Margem</th><td>${values.marginPercent}%</td></tr>
+            <tr><th>Valor adicional por parada</th><td>${money(values.extraPerStop)}</td></tr>
+          </tbody>
+        </table>
+
+        <h3 style='margin-top:16px;'>Saída</h3>
+        <table>
+          <tbody>
+            <tr><th>Distância total</th><td>${formatDistance(distanceMeters)}</td></tr>
+            <tr><th>Duração estimada</th><td>${formatDuration(durationSeconds)}</td></tr>
+            <tr><th>Combustível</th><td>${money((distanceMeters / 1000) / Math.max(values.kmPerLiter, 0.01) * values.fuelPrice)}</td></tr>
+            <tr><th>Motorista</th><td>${money((distanceMeters / 1000) * values.driverCostPerKm)}</td></tr>
+            <tr><th>Custos extras</th><td>${money(values.tollCost + values.otherFixedCost + values.stops.length * values.extraPerStop)}</td></tr>
+            <tr><th>Total com margem</th><td><strong>${money(((distanceMeters / 1000) / Math.max(values.kmPerLiter, 0.01) * values.fuelPrice) + ((distanceMeters / 1000) * values.driverCostPerKm) + values.tollCost + values.otherFixedCost + values.stops.length * values.extraPerStop + (((distanceMeters / 1000) / Math.max(values.kmPerLiter, 0.01) * values.fuelPrice) + ((distanceMeters / 1000) * values.driverCostPerKm) + values.tollCost + values.otherFixedCost + values.stops.length * values.extraPerStop) * (values.marginPercent / 100)))}</strong></td></tr>
+          </tbody>
+        </table>
+      `;
+    }
+
+    async function handleCalculate() {
+      try {
+        const values = getFormValues();
+        const result = await calculateRoute(values);
+        const html = buildResultTable(result, values);
+        byId('summary').innerHTML = html;
+        byId('summary').style.display = 'block';
+        byId('modalBody').innerHTML = buildModalContent(values, result);
+        setStatus('✅ Frete calculado com sucesso.', 'ok');
+      } catch (error) {
+        setStatus(error.message, 'err');
+      }
+    }
+
+    byId('btnCalculate').addEventListener('click', handleCalculate);
+    byId('btnOpenModal').addEventListener('click', () => {
+      byId('resultModal').style.display = 'block';
+    });
+    byId('closeModal').addEventListener('click', () => {
+      byId('resultModal').style.display = 'none';
+    });
+    window.addEventListener('click', event => {
+      if (event.target.id === 'resultModal') byId('resultModal').style.display = 'none';
+    });
+  </script>
+</body>
+</html>

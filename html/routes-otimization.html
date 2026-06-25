@@ -170,6 +170,8 @@ Parque Ibirapuera, São Paulo - SP</textarea>
 // ============================================================
 // CONFIGURAÇÕES GLOBAIS
 // ============================================================
+// Definições de constantes e variáveis usadas em todo o script.
+// Aqui também ficam os utilitários básicos para DOM, logs e formatação.
 const ROUTES_URL = "https://routes.googleapis.com/directions/v2:computeRoutes";
 const GEOCODE_URL = "https://maps.googleapis.com/maps/api/geocode/json";
 let map, markers = [], polylines = [], deviceLocation = null, debugLines = [];
@@ -207,6 +209,8 @@ const decodePolyline = encoded => {
 // --------------------------------------------------------------
 // MAPA
 // --------------------------------------------------------------
+// Funções responsáveis por carregar o Maps JavaScript, criar o mapa,
+// limpar elementos antigos e desenhar marcadores e polilinhas.
 async function loadMapsScript(apiKey) {
   return new Promise((resolve, reject) => {
     if (window.google && window.google.maps) return resolve();
@@ -225,6 +229,8 @@ function drawPolyline(encoded, color = "#1a73e8") { const path = decodePolyline(
 // --------------------------------------------------------------
 // GEOCODING API
 // --------------------------------------------------------------
+// Funções que chamam a API de Geocoding do Google para obter
+// latitude/longitude a partir de um endereço de texto.
 async function geocodeAddress(address, apiKey) {
   if (!address) throw new Error("Endereço vazio");
   const url = `${GEOCODE_URL}?address=${encodeURIComponent(address)}&key=${apiKey}`;
@@ -247,6 +253,8 @@ async function getAllCoordinatesFromGeocoding(apiKey, destinationAddr, stopsList
 // --------------------------------------------------------------
 // ORIGEM
 // --------------------------------------------------------------
+// Funções para ler a origem do usuário, seja por endereço digitado
+// ou pela localização atual do dispositivo.
 async function captureDeviceLocation() { if (!navigator.geolocation) throw new Error("Geolocalização não suportada."); const pos = await new Promise((res, rej) => navigator.geolocation.getCurrentPosition(res, rej, { enableHighAccuracy: true, timeout: 15000 })); deviceLocation = { lat: pos.coords.latitude, lng: pos.coords.longitude, accuracy: pos.coords.accuracy }; byId("originDeviceInfo").textContent = `Localização: ${deviceLocation.lat.toFixed(6)}, ${deviceLocation.lng.toFixed(6)}`; }
 async function ensureDeviceIfNeeded() { if (getVal("originMode") === "device" && !deviceLocation) await captureDeviceLocation(); }
 function getOriginInput() {
@@ -288,6 +296,8 @@ function getGlobalStartTimeUTC() {
 // --------------------------------------------------------------
 // ROUTES API (para o botão "Quero ver no mapa")
 // --------------------------------------------------------------
+// Envia requisições ao endpoint de Routes API para desenhar a rota
+// no mapa. Também faz fallback quando o campo duration não é aceito.
 async function postComputeRoutes(apiKey, body, extraFieldMask = "") {
   const baseMask = "routes.distanceMeters,routes.duration,routes.polyline.encodedPolyline,routes.optimizedIntermediateWaypointIndex,routes.legs.distanceMeters,routes.legs.duration,routes.legs.steps.startLocation.latLng,routes.legs.steps.endLocation.latLng";
   const mask = extraFieldMask ? `${baseMask},${extraFieldMask}` : baseMask;
@@ -302,6 +312,9 @@ async function postComputeRoutes(apiKey, body, extraFieldMask = "") {
 // --------------------------------------------------------------
 // ROUTE OPTIMIZATION (com janelas relativas à partida)
 // --------------------------------------------------------------
+// Estas funções constroem os dados de otimização de rota usando
+// janelas de tempo relativas ao horário de partida e montam o payload
+// para a API de Route Optimization.
 // Gera as janelas de tempo com base no horário de partida (globalStartTime)
 function generateTimeWindowsFromDeparture(startTimeUTC, numStops) {
   const windows = [];
@@ -461,6 +474,8 @@ async function callRouteOptimizationWithCoords(projectId, originCoord, stopsCoor
 }
 
 function extractPolyline(data) {
+  // Extrai a polyline codificada da resposta de otimização ou
+  // das transições, garantindo que haja uma rota válida.
   if (!data.routes || data.routes.length === 0) throw new Error("Nenhuma rota retornada");
   const route = data.routes[0];
   if (route.routePolyline && route.routePolyline.points) return route.routePolyline.points;
@@ -473,6 +488,9 @@ function extractPolyline(data) {
 }
 
 function extractOptimizedOrder(routeData, originalStops) {
+  // Tenta reconstruir a ordem otimizada das paradas com base em
+  // shipmentIndex retornado pela API.
+
   const visits = routeData.visits || [];
   const ordered = [];
   const indexToAddress = {};
@@ -492,6 +510,8 @@ function extractOptimizedOrder(routeData, originalStops) {
 // --------------------------------------------------------------
 // TABELA DETALHADA
 // --------------------------------------------------------------
+// Cria a tabela com o cronograma detalhado dos trechos, incluindo
+// tempo de viagem, espera e horários locais de saída/chegada.
 function buildDetailedTable(routeData, stopsList, originLabel, destinationLabel, minutesPerStop) {
   const transitions = routeData.transitions || [];
   const visits = routeData.visits || [];
@@ -561,6 +581,8 @@ function buildDetailedTable(routeData, stopsList, originLabel, destinationLabel,
 // --------------------------------------------------------------
 // OTIMIZAÇÃO PRINCIPAL
 // --------------------------------------------------------------
+// Função principal chamada ao clicar em "Otimizar". Faz geocoding,
+// chama a API de otimização, desenha a rota no mapa e mostra o resultado.
 async function optimizeAndDraw() {
   debugLines = []; byId("debug").textContent = ""; byId("summary").innerHTML = ""; byId("detailedTable").innerHTML = "";
   const apiKey = byId("apiKey").value.trim();
@@ -637,6 +659,8 @@ async function optimizeAndDraw() {
 // --------------------------------------------------------------
 // ROUTES API ORIGINAL (showMapFlow)
 // --------------------------------------------------------------
+// Rotina alternativa que usa a Routes API para mostrar a rota no mapa
+// sem passar pela otimização de turnos/janelas.
 async function showMapFlow() {
   debugLines = []; byId("debug").textContent = ""; byId("summary").innerHTML = ""; byId("detailedTable").innerHTML = "";
   const apiKey = byId("apiKey").value.trim();
@@ -716,6 +740,8 @@ async function showMapFlow() {
 // --------------------------------------------------------------
 // TABELA DE TIME WINDOWS (geração com base na partida)
 // --------------------------------------------------------------
+// Atualiza a tabela de janelas de tempo na interface com valores
+// baseados no horário de partida e nas paradas atuais.
 function refreshTimeWindowsTable() {
   const stops = parseLines(byId("stops").value);
   const destination = byId("destination").value.trim();
